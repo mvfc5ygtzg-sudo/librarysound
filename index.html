@@ -96,6 +96,8 @@ nav.tabs button.on{color:var(--acc);font-weight:600}
 .legend{display:flex;gap:10px;flex-wrap:wrap;font-size:11px;color:var(--muted)}
 .legend i{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:5px;vertical-align:0}
 .zbtn{width:34px;height:34px;border-radius:10px;border:1px solid var(--line2);background:#14161B;color:var(--text);font-size:18px;line-height:1}
+.fdel{position:absolute;top:10px;right:10px;width:36px;height:36px;border-radius:10px;border:1px solid var(--line2);background:#1a1d23;color:#ff8a92;display:flex;align-items:center;justify-content:center;z-index:2}
+.dangerbtn{height:52px;padding:0 20px;border-radius:16px;border:none;background:#FF3B4E;color:#fff;font-size:16px;font-weight:700}
 .avbtn{width:44px;height:44px;border-radius:22px;border:2px solid var(--acc);background:#1b1e24;padding:0;overflow:hidden;flex:none;display:flex;align-items:center;justify-content:center}
 .avbtn img,.avbig img{width:100%;height:100%;object-fit:cover}
 .avbig{width:92px;height:92px;border-radius:46px;border:3px solid var(--acc);background:#1b1e24;padding:0;overflow:hidden;flex:none;display:flex;align-items:center;justify-content:center}
@@ -103,7 +105,19 @@ nav.tabs button.on{color:var(--acc);font-weight:600}
 .pcard.row{flex-direction:row;align-items:center}
 .nameinp{height:44px;border-radius:12px;border:1px solid var(--line2);background:#0f1114;color:var(--text);padding:0 12px;font-size:18px;font-weight:700;font-family:var(--head);width:100%}
 .rank{font-size:13px;font-weight:700;color:#0B0C0F;background:var(--acc);border-radius:8px;padding:3px 10px;align-self:flex-start}
-.charwrap{width:220px;height:230px}
+.charwrap{width:200px;height:270px;image-rendering:pixelated}
+.skins{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.skin{padding:10px 8px;border-radius:16px;background:var(--card);border:1px solid var(--line);color:var(--text);display:flex;flex-direction:column;align-items:center;gap:4px;font-size:12px;text-align:center}
+.skin.sel{border-color:var(--acc);box-shadow:0 0 0 1px var(--acc) inset}
+.skin.locked{opacity:.4}
+.skin small{color:var(--muted);font-size:11px}
+.skinpic{width:56px;height:78px}.skinpic svg{width:100%;height:100%}
+.tone{width:28px;height:28px;border-radius:14px;border:2px solid transparent}
+.tone.sel{border-color:var(--acc)}
+@keyframes flexA{0%,45%{opacity:1}50%,95%{opacity:0}100%{opacity:1}}
+@keyframes flexB{0%,45%{opacity:0}50%,95%{opacity:1}100%{opacity:0}}
+.ch-idle{animation:flexA 2.6s steps(1) infinite}
+.ch-flex{animation:flexB 2.6s steps(1) infinite}
 .charwrap svg{width:100%;height:100%;overflow:visible}
 .xpbar{width:100%;height:12px;border-radius:6px;background:#23262D;overflow:hidden}
 .xpbar div{height:100%;border-radius:6px;background:linear-gradient(90deg,#9BD10F,#C6F432);width:0;transition:width .6s}
@@ -113,11 +127,11 @@ nav.tabs button.on{color:var(--acc);font-weight:600}
 .badge2.locked{opacity:.38}
 .badge2 .bi{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex:none;font-family:var(--mono);font-weight:700;font-size:12px;color:#0B0C0F}
 .badge2 b{font-size:13px}.badge2 span{font-size:11px;color:var(--muted)}
-@keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+@keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-.6px)}}
 @keyframes blink{0%,92%,100%{transform:scaleY(1)}95%{transform:scaleY(.1)}}
 @keyframes pulse{0%,100%{opacity:.35}50%{opacity:.8}}
 @keyframes spin{to{transform:rotate(360deg)}}
-.ch-body{animation:bob 2.4s ease-in-out infinite;transform-origin:100px 200px}
+.ch-body{animation:bob 1.3s ease-in-out infinite}
 .ch-eye{animation:blink 4.5s infinite;transform-box:fill-box;transform-origin:center}
 .ch-aura{animation:pulse 2s ease-in-out infinite}
 .ch-disc{animation:spin 3s linear infinite;transform-box:fill-box;transform-origin:center}
@@ -224,6 +238,7 @@ nav.tabs button.on{color:var(--acc);font-weight:600}
       <div class="row" style="gap:10px">
         <button class="big" id="tPlay" style="flex:1"></button>
         <button class="ghost" id="tReveal" style="flex:1" title="Где лежит файл">Файл</button>
+        <button class="ghost" id="tDelete" aria-label="Удалить трек" style="color:#ff8a92;flex:none;width:52px;padding:0"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg></button>
       </div>
       <div class="dim" id="tPath" style="font-size:12px;word-break:break-all;display:none"></div>
       <div style="display:flex;flex-direction:column;gap:10px">
@@ -297,7 +312,7 @@ nav.tabs button.on{color:var(--acc);font-weight:600}
         <button class="ghost" id="expCsv">Таблица (CSV)</button>
         <input type="file" id="impFile" accept=".json,application/json" style="display:none">
       </div>
-      <span class="dim" style="font-size:12px">Версия приложения: <b id="appVer">2026-11-16 · 9</b></span>
+      <span class="dim" style="font-size:12px">Версия приложения: <b id="appVer">2026-11-16 · 10</b></span>
       <span class="dim" style="font-size:13px;line-height:1.5">«Данные библиотеки» — это BPM, тональности и твои исправления. Сами треки в этот файл не входят. Сохрани его рядом с музыкой в облаке.</span>
     </div>
   </section>
@@ -334,6 +349,9 @@ nav.tabs button.on{color:var(--acc);font-weight:600}
         <b style="font-size:15px">Как прокачаться</b>
         <span class="dim" style="font-size:13px;line-height:1.6">+10 опыта за каждый трек · +40 за каждую папку · +5 за исправленный BPM, тональность или сетку</span>
       </div>
+      <span class="eyebrow" style="margin-top:4px">Скины</span>
+      <div class="row" style="gap:8px;align-items:center"><span class="dim" style="font-size:13px">Цвет кожи:</span><div class="row" id="toneRow" style="gap:8px"></div></div>
+      <div class="skins" id="skinGrid"></div>
       <span class="eyebrow" style="margin-top:4px">Достижения</span>
       <div class="badges" id="badges"></div>
     </div>
@@ -368,6 +386,12 @@ nav.tabs button.on{color:var(--acc);font-weight:600}
   <select id="kSel"></select>
   <label style="display:flex;gap:8px;align-items:center;color:var(--soft)"><input type="checkbox" id="kCompat" style="width:20px;height:20px" checked> Плюс совместимые (±1 и A↔B)</label>
   <div class="row"><button class="big" id="kApply" style="flex:1">Применить</button><button class="ghost" id="kClear">Сбросить</button></div>
+</div></div>
+<div class="sheet" id="delSheet"><div class="box">
+  <b style="font-size:18px" id="delTitle">Удалить?</b>
+  <span class="dim" style="font-size:14px;line-height:1.5" id="delText"></span>
+  <label style="display:none;gap:8px;align-items:flex-start;color:var(--soft);font-size:14px;line-height:1.4" id="delDriveRow"><input type="checkbox" id="delDrive" style="width:20px;height:20px;flex:none"> Удалить и с Google Диска — файл попадёт в корзину Диска, его можно восстановить 30 дней</label>
+  <div class="row"><button class="dangerbtn" id="delOk" style="flex:1">Удалить</button><button class="ghost" id="delCancel">Отмена</button></div>
 </div></div>
 <div class="toast" id="toast"></div>
 <audio id="audio" preload="metadata"></audio>
@@ -438,7 +462,7 @@ const S = {
   folder: "Все", q: "", sort: "new",
   bpmMin: null, bpmMax: null, bpmHalf: true,
   keyF: null, keyCompat: true,
-  current: null, playingId: null, detail: new Map(), zoom: 8,
+  current: null, playingId: null, detail: new Map(), zoom: 8, hiddenFolders: new Set(),
   queue: [], analyzing: null, done: 0, total: 0,
 };
 const effBpm = (t) => t.bpmUser ?? t.bpm ?? null;
@@ -870,9 +894,10 @@ async function runQueue(){
 /* =====================================================================
    Rendering
    ===================================================================== */
+const isLive=(t)=>!t.missing && !t.hidden && !S.hiddenFolders.has(t.folder);
 function visibleTracks(){
   const q=S.q.trim().toLowerCase();
-  let arr=[...S.tracks.values()].filter(t=>!t.missing);
+  let arr=[...S.tracks.values()].filter(isLive);
   if (S.folder!=="Все") arr=arr.filter(t=>t.folder===S.folder);
   if (q) arr=arr.filter(t=>{ const b=effBpm(t), k=effKey(t); return (t.title+" "+t.artist+" "+t.fname+" "+(k||"")+" "+(k?CAMELOT_NAME[k]:"")+" "+(b?bpmText(b):"")).toLowerCase().includes(q); });
   if (S.bpmMin!=null || S.bpmMax!=null){
@@ -893,7 +918,7 @@ function coverHtml(t, cls="cover"){
 }
 function plural(n, a, b, c){ const m10=n%10, m100=n%100; if(m10===1&&m100!==11) return a; if(m10>=2&&m10<=4&&(m100<10||m100>=20)) return b; return c; }
 function renderList(){
-  const all=[...S.tracks.values()].filter(t=>!t.missing);
+  const all=[...S.tracks.values()].filter(isLive);
   $("#libCount").textContent = all.length ? all.length+" "+plural(all.length,"трек","трека","треков") : "Нет треков";
   $("#libEyebrow").textContent = S.rootName ? "Папка «"+S.rootName+"»" : "Моя библиотека";
   const arr=visibleTracks(), L=$("#list");
@@ -913,7 +938,7 @@ function renderList(){
   }).join("");
 }
 function renderChips(){
-  const folders=[...new Set([...S.tracks.values()].filter(t=>!t.missing).map(t=>t.folder))].sort((a,b)=>a.localeCompare(b,"ru"));
+  const folders=[...new Set([...S.tracks.values()].filter(isLive).map(t=>t.folder))].sort((a,b)=>a.localeCompare(b,"ru"));
   if (!folders.includes(S.folder) && S.folder!=="Все") S.folder="Все";
   $("#folderChips").innerHTML=["Все",...folders].map(f=>`<button class="chip${S.folder===f?" on":""}" data-folder="${esc(f)}">${esc(f)}</button>`).join("");
 }
@@ -926,15 +951,18 @@ function renderPills(){
 }
 function renderFolders(){
   const groups={};
-  for (const t of S.tracks.values()){ if(t.missing) continue; (groups[t.folder] ||= []).push(t); }
+  for (const t of S.tracks.values()){ if(!isLive(t)) continue; (groups[t.folder] ||= []).push(t); }
   const names=Object.keys(groups).sort((a,b)=>a.localeCompare(b,"ru"));
   if (!names.length){ $("#folderGrid").innerHTML=`<div class="empty" style="grid-column:1/-1;margin:0"><p>Папки появятся, когда выберешь папку с музыкой.</p></div>`; return; }
   $("#folderGrid").innerHTML = names.map((n,i)=>{
     const ts=groups[n], bs=ts.map(effBpm).filter(b=>b!=null);
     const lo=bs.length?Math.round(Math.min(...bs)):0, hi=bs.length?Math.round(Math.max(...bs)):0; const range = bs.length ? (lo===hi? lo : lo+"–"+hi)+" BPM" : "анализ…";
     const h=(i*47+200)%360;
-    return `<button class="fcard" data-folder="${esc(n)}"><div class="ficon" style="background:hsl(${h} 70% 66%)"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0B0C0F" stroke-width="2.2" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></div><span class="fname">${esc(n)}</span><span style="font-size:13px;color:var(--muted)">${ts.length} ${plural(ts.length,"трек","трека","треков")}</span><span style="font-family:var(--mono);font-size:12px;color:var(--soft)">${range}</span></button>`;
+    return `<div style="position:relative"><button class="fdel" data-delfolder="${esc(n)}" aria-label="Удалить папку ${esc(n)}"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg></button><button class="fcard" style="width:100%" data-folder="${esc(n)}"><div class="ficon" style="background:hsl(${h} 70% 66%)"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0B0C0F" stroke-width="2.2" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></div><span class="fname">${esc(n)}</span><span style="font-size:13px;color:var(--muted)">${ts.length} ${plural(ts.length,"трек","трека","треков")}</span><span style="font-family:var(--mono);font-size:12px;color:var(--soft)">${range}</span></button></div>`;
   }).join("");
+  const hidT=[...S.tracks.values()].filter(t=>!t.missing && (t.hidden || S.hiddenFolders.has(t.folder))).length;
+  if (hidT || S.hiddenFolders.size) $("#folderGrid").insertAdjacentHTML("beforeend", `<div class="pcard row" style="grid-column:1/-1;gap:12px"><span class="dim" style="flex:1;font-size:13px">Удалено из библиотеки: ${hidT} ${plural(hidT,"трек","трека","треков")}${S.hiddenFolders.size?`, папок: ${S.hiddenFolders.size}`:""}</span><button class="smallbtn" id="restoreAll">Вернуть все</button></div>`);
+  const rb=$("#restoreAll"); if (rb) rb.onclick=async ()=>{ for (const t of S.tracks.values()) if (t.hidden){ t.hidden=false; await DB.put(t); } S.hiddenFolders.clear(); await DB.setMeta("hiddenFolders", []); renderAll(); toast("Всё вернул в библиотеку"); };
 }
 function renderQueue(){
   const box=$("#queueBox"); const total=S.total, done=S.done;
@@ -990,8 +1018,10 @@ async function playTrack(id){
   const src=S.files.get(id);
   if (!src){ toast("Файл недоступен — открой папку или подключи Google Диск во вкладке «Добавить»"); return; }
   if (objUrl){ URL.revokeObjectURL(objUrl); objUrl=null; }
-  if (src.drive){ audio.src=mediaUrl(src.drive); }
-  else { const f=await getFile(id); objUrl=URL.createObjectURL(f); audio.src=objUrl; }
+  if (src.drive){ audio.src=mediaUrl(src.drive)+"#t=0"; }
+  else { const f=await getFile(id); objUrl=URL.createObjectURL(f); audio.src=objUrl+"#t=0"; }
+  S._startGuard=performance.now();
+  audio.addEventListener("loadedmetadata", ()=>{ try{ audio.currentTime=0; }catch(e){} }, {once:true});
   S.playingId=id;
   try{ audio.currentTime=0; }catch(e){}
   try{ await audio.play(); }catch(e){ toast("Браузер не может проиграть этот формат"); }
@@ -1147,7 +1177,8 @@ $("#tOver").addEventListener("click",(e)=>{ const t=S.tracks.get(S.current); if(
 $("#zIn").onclick=()=>{ S.zoom=Math.max(2, S.zoom/1.5); drawWaves(); };
 $("#zOut").onclick=()=>{ S.zoom=Math.min(64, S.zoom*1.5); drawWaves(); };
 audio.addEventListener("timeupdate", ()=>{ const p=audio.duration?audio.currentTime/audio.duration*100:0; $("#mProg").firstElementChild.style.width=p+"%"; updateWave(); });
-audio.addEventListener("play", updatePlayButtons); audio.addEventListener("pause", updatePlayButtons);
+audio.addEventListener("play", updatePlayButtons);
+audio.addEventListener("playing", ()=>{ if (S._startGuard && performance.now()-S._startGuard<1500 && audio.currentTime>0.4){ audio.currentTime=0; } S._startGuard=0; }); audio.addEventListener("pause", updatePlayButtons);
 audio.addEventListener("ended", ()=>{ updatePlayButtons(); });
 $("#mPlay").onclick=togglePlay;
 $("#mTitle").onclick=()=>{ if(S.playingId) openTrack(S.playingId); };
@@ -1200,7 +1231,7 @@ $("#eReset").onclick=async ()=>{ const t=S.tracks.get(S.current); t.bpmUser=null
 
 /* ---------- export / import ---------- */
 function download(name, text, type){ const a=document.createElement("a"); a.href=URL.createObjectURL(new Blob([text],{type})); a.download=name; document.body.appendChild(a); a.click(); setTimeout(()=>{URL.revokeObjectURL(a.href); a.remove();},500); }
-$("#expJson").onclick=()=>{ const data={app:"dj-library",version:1,exportedAt:new Date().toISOString(),root:S.rootName,tracks:[...S.tracks.values()].map(({cover,...t})=>t)}; download("dj-library-data.json", JSON.stringify(data), "application/json"); };
+$("#expJson").onclick=()=>{ const data={app:"dj-library",version:1,exportedAt:new Date().toISOString(),root:S.rootName,hiddenFolders:[...S.hiddenFolders],tracks:[...S.tracks.values()].map(({cover,...t})=>t)}; download("dj-library-data.json", JSON.stringify(data), "application/json"); };
 $("#impJson").onclick=()=>$("#impFile").click();
 async function mergeData(data){
   let n=0;
@@ -1223,14 +1254,52 @@ $("#expCsv").onclick=()=>{ const rows=[["Папка","Артист","Назва�
   download("dj-library.csv", "﻿"+rows.map(r=>r.map(v=>'"'+String(v??"").replace(/"/g,'""')+'"').join(";")).join("\n"), "text/csv"); };
 
 /* =====================================================================
+   Deleting tracks and folders (hide from library; optionally to Google Drive trash)
+   ===================================================================== */
+const DEL={kind:null, target:null};
+function openDelete(kind, target){
+  DEL.kind=kind; DEL.target=target;
+  const canDrive = !!(CLOUD.cfg && CLOUD.cfg.clientId) && (kind==="track" ? !!(S.files.get(target)||{}).drive : !!(CLOUD.folders && CLOUD.folders[target]));
+  if (kind==="track"){ const t=S.tracks.get(target); $("#delTitle").textContent="Удалить трек?"; $("#delText").textContent=`«${t.title}» пропадёт из библиотеки. Сам файл на Mac не удаляется.`; }
+  else { const n=[...S.tracks.values()].filter(t=>t.folder===target && !t.missing).length; $("#delTitle").textContent="Удалить папку?"; $("#delText").textContent=`Папка «${target}» и ${n} ${plural(n,"трек","трека","треков")} в ней пропадут из библиотеки. Файлы на Mac не удаляются.`; }
+  $("#delDriveRow").style.display = canDrive ? "flex" : "none"; $("#delDrive").checked=false;
+  $("#delSheet").classList.add("on");
+}
+$("#delCancel").onclick=()=>$("#delSheet").classList.remove("on");
+$("#delOk").onclick=async ()=>{
+  const fromDrive = $("#delDriveRow").style.display!=="none" && $("#delDrive").checked;
+  $("#delSheet").classList.remove("on");
+  try{
+    if (fromDrive) await getToken();
+    if (DEL.kind==="track"){
+      const t=S.tracks.get(DEL.target);
+      if (fromDrive){ const src=S.files.get(t.id); const r=await gauth(`${DAPI}/${src.drive}?supportsAllDrives=true`, {method:"PATCH", headers:{"Content-Type":"application/json"}, body:JSON.stringify({trashed:true})}); if(!r.ok) throw new Error("Диск не удалил файл ("+r.status+")"); }
+      t.hidden=true; await DB.put(t);
+      if (S.playingId===t.id){ audio.pause(); }
+      toast(fromDrive ? "Трек удалён и перемещён в корзину Google Диска" : "Трек удалён из библиотеки");
+      if ($("#v-track").classList.contains("on")) show(lastTab);
+    } else {
+      const name=DEL.target;
+      if (fromDrive){ const r=await gauth(`${DAPI}/${CLOUD.folders[name]}?supportsAllDrives=true`, {method:"PATCH", headers:{"Content-Type":"application/json"}, body:JSON.stringify({trashed:true})}); if(!r.ok) throw new Error("Диск не удалил папку ("+r.status+")"); }
+      S.hiddenFolders.add(name); await DB.setMeta("hiddenFolders", [...S.hiddenFolders]);
+      if (S.folder===name) S.folder="Все";
+      toast(fromDrive ? `Папка «${name}» удалена и перемещена в корзину Диска` : `Папка «${name}» удалена из библиотеки`);
+    }
+  }catch(e){ toast(e.message); }
+  renderAll();
+};
+$("#tDelete").onclick=()=>openDelete("track", S.current);
+document.addEventListener("click",(e)=>{ const b=e.target.closest("[data-delfolder]"); if (b){ e.stopPropagation(); openDelete("folder", b.dataset.delfolder); } }, true);
+
+/* =====================================================================
    Profile: avatar, name, character that levels up
    ===================================================================== */
-const P = { name:"", avatar:null, lastLevel:1 };
+const P = { name:"", avatar:null, lastLevel:1, skin:"base", tone:0 };
 const RANKS = [[1,"Новичок"],[2,"Bedroom DJ"],[4,"Диггер"],[6,"Резидент"],[8,"Хедлайнер"],[10,"Легенда"]];
-const UNLOCKS = [[2,"наушники"],[4,"тёмные очки"],[6,"золотая цепь с пластинкой"],[8,"свой DJ-пульт"],[10,"сияние легенды и корона"],[12,"новый цвет"]];
+const UNLOCKS = [[3,"скин «Клубная футболка» с кепкой"],[5,"скин «Бомбер» и тёмные очки"],[7,"скин «Спортивный костюм» с цепью"],[9,"скин «Кожанка хедлайнера»"],[11,"скин «Золотой костюм легенды» с короной"]];
 function xpNeeded(n){ return 50*(n-1)*n; }               // total XP to reach level n
 function stats(){
-  const live=[...S.tracks.values()].filter(t=>!t.missing);
+  const live=[...S.tracks.values()].filter(isLive);
   const folders=new Set(live.map(t=>t.folder)).size;
   const fixes=live.filter(t=>t.bpmUser!=null||t.keyUser!=null||t.gridShift||t.barOffset).length;
   const hours=live.reduce((a,t)=>a+(t.dur||0),0)/3600;
@@ -1238,46 +1307,59 @@ function stats(){
 }
 function levelOf(xp){ let n=1; while (xpNeeded(n+1)<=xp) n++; return n; }
 function rankOf(l){ let r=RANKS[0][1]; for (const [lv,name] of RANKS) if (l>=lv) r=name; return r; }
-function charSVG(l){
-  const body = l>=12 ? "#B78CFF" : l>=8 ? "#FF9F43" : l>=5 ? "#C6F432" : l>=3 ? "#7CC8FF" : "#9AA3B5";
-  const belly = l>=12 ? "#DCC8FF" : l>=8 ? "#FFD0A0" : l>=5 ? "#E6FF9E" : l>=3 ? "#C6E8FF" : "#C9CFDA";
-  let s = `<svg viewBox="0 0 200 230" role="img" aria-label="Персонаж уровня ${l}">`;
-  if (l>=10) s += `<circle class="ch-aura" cx="100" cy="125" r="96" fill="${body}" opacity=".35"/><circle class="ch-aura" cx="100" cy="125" r="78" fill="${body}" opacity=".25"/>`;
-  s += `<ellipse cx="100" cy="214" rx="56" ry="8" fill="#000" opacity=".45"/>`;
-  s += `<g class="ch-body">`;
-  if (l>=10) s += `<path d="M70 52 L80 30 L92 46 L100 24 L108 46 L120 30 L130 52 Z" fill="#FFD43B" stroke="#C99700" stroke-width="2"/><circle cx="100" cy="30" r="4" fill="#FF5C7A"/>`;
-  s += `<ellipse cx="72" cy="196" rx="16" ry="9" fill="${body}" filter="brightness(.8)"/><ellipse cx="128" cy="196" rx="16" ry="9" fill="${body}"/>`;
-  s += `<ellipse cx="100" cy="128" rx="64" ry="68" fill="${body}"/>`;
-  s += `<ellipse cx="100" cy="148" rx="40" ry="38" fill="${belly}" opacity=".85"/>`;
-  s += `<ellipse cx="38" cy="140" rx="12" ry="20" fill="${body}" transform="rotate(${l>=8?-35:15} 38 140)"/><ellipse cx="162" cy="140" rx="12" ry="20" fill="${body}" transform="rotate(${l>=8?35:-15} 162 140)"/>`;
-  if (l>=4){
-    s += `<rect x="58" y="98" width="36" height="22" rx="9" fill="#0B0C0F"/><rect x="106" y="98" width="36" height="22" rx="9" fill="#0B0C0F"/><rect x="92" y="105" width="16" height="4" fill="#0B0C0F"/>`;
-    s += `<rect x="64" y="102" width="10" height="4" rx="2" fill="#fff" opacity=".7"/><rect x="112" y="102" width="10" height="4" rx="2" fill="#fff" opacity=".7"/>`;
-  } else {
-    s += `<g class="ch-eye"><ellipse cx="78" cy="108" rx="13" ry="15" fill="#fff"/><circle cx="81" cy="110" r="7" fill="#0B0C0F"/><circle cx="84" cy="106" r="2.5" fill="#fff"/></g>`;
-    s += `<g class="ch-eye"><ellipse cx="122" cy="108" rx="13" ry="15" fill="#fff"/><circle cx="125" cy="110" r="7" fill="#0B0C0F"/><circle cx="128" cy="106" r="2.5" fill="#fff"/></g>`;
-  }
-  s += `<path d="M84 134 Q100 ${l>=6?152:146} 116 134" fill="none" stroke="#0B0C0F" stroke-width="4" stroke-linecap="round"/>`;
-  s += `<ellipse cx="66" cy="128" rx="8" ry="5" fill="#FF7A90" opacity=".45"/><ellipse cx="134" cy="128" rx="8" ry="5" fill="#FF7A90" opacity=".45"/>`;
-  if (l>=2){
-    s += `<path d="M40 112 Q40 46 100 46 Q160 46 160 112" fill="none" stroke="#1d2026" stroke-width="10" stroke-linecap="round"/>`;
-    s += `<rect x="26" y="100" width="24" height="38" rx="10" fill="#1d2026"/><rect x="150" y="100" width="24" height="38" rx="10" fill="#1d2026"/>`;
-    s += `<rect x="30" y="106" width="6" height="26" rx="3" fill="${l>=5?"#C6F432":"#4EA0FF"}"/><rect x="164" y="106" width="6" height="26" rx="3" fill="${l>=5?"#C6F432":"#4EA0FF"}"/>`;
-  }
-  if (l>=6){
-    s += `<path d="M66 150 Q100 182 134 150" fill="none" stroke="#FFD43B" stroke-width="4"/>`;
-    s += `<g class="ch-disc"><circle cx="100" cy="172" r="12" fill="#111"/><circle cx="100" cy="172" r="8" fill="none" stroke="#333" stroke-width="1"/><circle cx="100" cy="172" r="3.5" fill="#FF5C7A"/></g>`;
-  }
-  s += `</g>`;
-  if (l>=8){
-    s += `<rect x="30" y="176" width="140" height="40" rx="10" fill="#14161B" stroke="#2A2E37" stroke-width="2"/>`;
-    s += `<g class="ch-disc"><circle cx="64" cy="196" r="14" fill="#0B0C0F" stroke="#3a3f49"/><circle cx="64" cy="196" r="4" fill="#C6F432"/></g>`;
-    s += `<g class="ch-disc"><circle cx="136" cy="196" r="14" fill="#0B0C0F" stroke="#3a3f49"/><circle cx="136" cy="196" r="4" fill="#FF5C7A"/></g>`;
-    s += `<rect x="92" y="186" width="16" height="4" rx="2" fill="#4EA0FF"/><rect x="92" y="194" width="16" height="4" rx="2" fill="#3BE37A"/><rect x="92" y="202" width="16" height="4" rx="2" fill="#FF3B4E"/>`;
-  }
-  if (l>=10) s += `<text x="168" y="60" font-size="18" fill="#FFD43B">♪</text><text x="22" y="74" font-size="14" fill="#FFD43B">♫</text>`;
-  return s + `</svg>`;
+/* Pixel-art DJ (original character): on-ear DJ headphones always on, flexes, unlockable outfits */
+const TONES=[["#F6D3B3","#D9A882"],["#D9A06B","#B57B4A"],["#9A6236","#74451F"],["#5E3A1F","#45290F"]];
+const SKINS=[
+  {id:"base",  lvl:1,  name:"Новичок",      hair:"#3B2A20", shirt:"#7A8496", sleeve:"#7A8496", acc:"#A9B2C2", pants:"#3D5A8A", shoes:"#E8E8E8"},
+  {id:"club",  lvl:3,  name:"Клубная футболка", hair:"#1E1E1E", shirt:"#15171C", sleeve:"#15171C", acc:"#C6F432", pants:"#2A2D34", shoes:"#C6F432", cap:"#C6F432"},
+  {id:"bomber",lvl:5,  name:"Бомбер",       hair:"#5A3A22", shirt:"#FF8A2B", sleeve:"#FF8A2B", acc:"#1E1E1E", pants:"#1F2A3A", shoes:"#FFFFFF", glasses:true},
+  {id:"track", lvl:7,  name:"Спортивный костюм", hair:"#121212", shirt:"#E0213B", sleeve:"#E0213B", acc:"#FFFFFF", pants:"#E0213B", shoes:"#111111", stripes:true, chain:true},
+  {id:"leather",lvl:9, name:"Кожанка хедлайнера", hair:"#7B3FE4", shirt:"#2B1B4A", sleeve:"#3A2464", acc:"#B78CFF", pants:"#151515", shoes:"#B78CFF", glasses:true, chain:true},
+  {id:"legend",lvl:11, name:"Золотой костюм легенды", hair:"#F2F2F2", shirt:"#E8B923", sleeve:"#E8B923", acc:"#FFF2B0", pants:"#C9971A", shoes:"#FFFFFF", crown:true, aura:true, chain:true, glasses:true},
+];
+function skinById(id){ return SKINS.find(x=>x.id===id)||SKINS[0]; }
+function charSVG(l, skinId, toneIdx, small){
+  const sk=skinById(skinId), [skin,skinD]=TONES[toneIdx||0]||TONES[0];
+  const R=(x,y,w,h,c)=>`<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${c}"/>`;
+  let s=`<svg viewBox="0 -4 24 38" shape-rendering="crispEdges" role="img" aria-label="Персонаж: ${sk.name}">`;
+  if (sk.aura) s+=`<circle class="ch-aura" cx="12" cy="17" r="12" fill="#FFD43B" opacity=".25"/>`;
+  s+=`<ellipse cx="12" cy="32.6" rx="7" ry="1" fill="#000" opacity=".45"/>`;
+  s+=`<g class="${small?"":"ch-body"}">`;
+  // legs, shoes
+  s+=R(8,23,3,7,sk.pants)+R(13,23,3,7,sk.pants)+R(10,23,4,2,sk.pants);
+  if (sk.stripes) s+=R(8,23,1,7,sk.acc)+R(15,23,1,7,sk.acc);
+  s+=R(7,30,4,2,sk.shoes)+R(13,30,4,2,sk.shoes)+R(7,31,4,1,"rgba(0,0,0,.25)")+R(13,31,4,1,"rgba(0,0,0,.25)");
+  // torso
+  s+=R(8,14,8,9,sk.shirt)+R(8,22,8,1,"rgba(0,0,0,.35)");
+  if (sk.id==="club") s+=R(8,17,8,1,sk.acc);
+  if (sk.id==="bomber") s+=R(11,14,2,8,sk.acc)+R(8,14,8,1,"#2a2a2a");
+  if (sk.stripes) s+=R(11,14,2,8,sk.acc);
+  if (sk.id==="leather") s+=R(11,14,2,8,"#120c20")+R(9,15,1,1,sk.acc)+R(14,15,1,1,sk.acc);
+  if (sk.id==="legend") s+=R(11,14,2,8,"#FFF2B0")+R(10,15,1,1,"#fff")+R(13,15,1,1,"#fff");
+  if (sk.id==="base") s+=R(10,18,4,2,sk.acc);
+  if (sk.chain) s+=R(10,14,1,2,"#FFD43B")+R(13,14,1,2,"#FFD43B")+R(11,16,2,1,"#FFD43B")+R(11,17,2,2,"#111")+R(11.5,17.5,1,1,"#FF4D6A");
+  // neck + head
+  s+=R(11,13,2,1,skinD)+R(8,5,8,8,skin)+R(8,12,8,1,skinD);
+  // hair
+  s+=R(7,3,10,3,sk.hair)+R(7,6,1,3,sk.hair)+R(16,6,1,2,sk.hair)+R(9,6,3,1,sk.hair);
+  if (sk.cap) s+=R(7,2,10,3,sk.cap)+R(15,4,4,1,sk.cap)+R(7,4,10,1,"rgba(0,0,0,.25)");
+  // face
+  if (sk.glasses) s+=R(9,8,3,2,"#0B0C0F")+R(13,8,3,2,"#0B0C0F")+R(12,8,1,1,"#0B0C0F")+R(9,8,1,1,"#5b6476");
+  else s+=R(10,8,1,2,"#FFFFFF")+R(14,8,1,2,"#FFFFFF")+R(10,9,1,1,"#1d2026")+R(14,9,1,1,"#1d2026");
+  s+=R(11,11,3,1,skinD)+R(12,11,1,1,"#a3524f");
+  // DJ headphones: split headband + closed on-ear cups (always on)
+  s+=R(7,1,10,1,"#121212")+R(6,2,1,2,"#121212")+R(17,2,1,2,"#121212")+R(8,0,8,1,"#121212");
+  s+=R(5,6,3,4,"#121212")+R(16,6,3,4,"#121212")+R(5,7,1,2,"#3a3f49")+R(18,7,1,2,"#3a3f49")+R(6,6,1,1,"#C6F432")+R(17,6,1,1,"#C6F432");
+  if (sk.crown) s+=R(8,-2,8,2,"#FFD43B")+R(8,-3,1,1,"#FFD43B")+R(11,-3,2,1,"#FFD43B")+R(15,-3,1,1,"#FFD43B")+R(11,-2,2,1,"#FF4D6A");
+  // arms: idle frame + flex frame (animated)
+  const sl=sk.sleeve;
+  const idle = R(6,14,2,4,sl)+R(16,14,2,4,sl)+R(6,18,2,3,skin)+R(16,18,2,3,skin);
+  const flex = R(6,14,2,2,sl)+R(16,14,2,2,sl)+R(3,14,3,2,skin)+R(18,14,3,2,skin)+R(4,13,2,1,skin)+R(18,13,2,1,skin)+R(3,10,2,4,skin)+R(19,10,2,4,skin)+R(2,8,3,2,skinD)+R(19,8,3,2,skinD);
+  s+= small ? `<g>${flex}</g>` : `<g class="ch-idle">${idle}</g><g class="ch-flex">${flex}</g>`;
+  s+=`</g>`;
+  return s+`</svg>`;
 }
+function skinsUnlocked(l){ return SKINS.filter(x=>l>=x.lvl); }
 const BADGES = [
   ["1","Первый трек","Добавлен первый трек",(st)=>st.tracks>=1,"#C6F432"],
   ["50","Коллекционер","50 треков",(st)=>st.tracks>=50,"#7CC8FF"],
@@ -1294,7 +1376,11 @@ function renderProfile(){
   $("#libAvatar").innerHTML=avatarHtml(); $("#avBtn").innerHTML=avatarHtml().replace('width="22" height="22"','width="40" height="40"');
   if (document.activeElement!==$("#djName")) $("#djName").value=P.name;
   $("#rankTxt").textContent=rankOf(l);
-  if ($("#charBox").dataset.l!==String(l)){ $("#charBox").innerHTML=charSVG(l); $("#charBox").dataset.l=l; }
+  if (!skinsUnlocked(l).some(x=>x.id===P.skin)) P.skin="base";
+  const ck=l+"|"+P.skin+"|"+P.tone;
+  if ($("#charBox").dataset.k!==ck){ $("#charBox").innerHTML=charSVG(l, P.skin, P.tone); $("#charBox").dataset.k=ck; }
+  $("#skinGrid").innerHTML=SKINS.map(x=>{ const on=l>=x.lvl, sel=P.skin===x.id; return `<button class="skin${sel?" sel":""}${on?"":" locked"}" data-skin="${x.id}" ${on?"":"disabled"} aria-label="${esc(x.name)}${on?"":", откроется на уровне "+x.lvl}"><div class="skinpic">${charSVG(l,x.id,P.tone,true)}</div><span>${esc(x.name)}</span><small>${on?(sel?"надето":"надеть"):"уровень "+x.lvl}</small></button>`; }).join("");
+  $("#toneRow").innerHTML=TONES.map((t,i)=>`<button class="tone${P.tone===i?" sel":""}" data-tone="${i}" style="background:${t[0]}" aria-label="Цвет кожи ${i+1}"></button>`).join("");
   $("#lvlNum").textContent=l;
   $("#xpFill").style.width=Math.round((st.xp-a)/(b-a)*100)+"%";
   $("#xpTxt").textContent=`${st.xp} опыта · до уровня ${l+1}: ${b-st.xp}`;
@@ -1307,6 +1393,10 @@ function renderProfile(){
   }
 }
 $("#libAvatar").onclick=()=>{ lastTab="profile"; show("profile"); };
+document.addEventListener("click", async (e)=>{
+  const sb=e.target.closest("[data-skin]"); if (sb && !sb.disabled){ P.skin=sb.dataset.skin; await DB.setMeta("profile",{...P}); renderProfile(); toast("Скин надет"); return; }
+  const tb=e.target.closest("[data-tone]"); if (tb){ P.tone=+tb.dataset.tone; await DB.setMeta("profile",{...P}); renderProfile(); }
+});
 $("#avBtn").onclick=()=>$("#avFile").click();
 $("#avFile").addEventListener("change", async (e)=>{
   const f=e.target.files[0]; if(!f) return;
@@ -1356,7 +1446,7 @@ async function driveList(folderId, prefix, out, dataFiles, depth=0){
     if (pageToken) q.pageToken=pageToken;
     const res=await gdrive("files", q);
     for (const f of res.files||[]){
-      if (f.mimeType==="application/vnd.google-apps.folder"){ if (depth<6) await driveList(f.id, prefix+"/"+f.name, out, dataFiles, depth+1); }
+      if (f.mimeType==="application/vnd.google-apps.folder"){ if (depth===0) (CLOUD.folders ||= {})[f.name]=f.id; if (depth<6) await driveList(f.id, prefix+"/"+f.name, out, dataFiles, depth+1); }
       else if (isAudio(f.name)) out.push({path:prefix+"/"+f.name, drive:f.id, size:+f.size||0, mtime:Date.parse(f.modifiedTime)||0});
       else if (depth===0 && /^dj-library-data.*\.json$/i.test(f.name)) dataFiles.push(f);
     }
@@ -1554,7 +1644,7 @@ function cloudFromUrl(){
   }catch(e){ return null; }
 }
 
-const APP_VER = "2026-11-16 · 9";
+const APP_VER = "2026-11-16 · 10";
 (async function checkUpdate(){
   try{
     if (location.protocol!=="https:") return;
@@ -1572,6 +1662,7 @@ const APP_VER = "2026-11-16 · 9";
     }
   }catch(e){ console.warn(e); }
   S.rootName = (await DB.getMeta("rootName").catch(()=>null)) || "";
+  const hf = await DB.getMeta("hiddenFolders"); if (Array.isArray(hf)) S.hiddenFolders=new Set(hf);
   const pr = await DB.getMeta("profile"); if (pr) Object.assign(P, pr); else P.lastLevel = levelOf(stats().xp);
   // Google Drive config: from a "phone link" (?c=...) or saved earlier
   const fromUrl = cloudFromUrl();
