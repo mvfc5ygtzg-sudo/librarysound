@@ -137,6 +137,13 @@ nav.tabs button.on{color:var(--acc);font-weight:600}
 .ch-disc{animation:spin 3s linear infinite;transform-box:fill-box;transform-origin:center}
 @keyframes pop{0%{transform:scale(1)}40%{transform:scale(1.12)}100%{transform:scale(1)}}
 .levelup{animation:pop .6s ease 2}
+.stemrow{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:14px;background:#0f1114;border:1px solid var(--line)}
+.stemrow .nm{width:92px;font-size:14px;font-weight:600;display:flex;align-items:center;gap:6px}
+.stemrow .nm i{width:10px;height:10px;border-radius:3px;display:inline-block}
+.stemrow input[type=range]{flex:1;accent-color:var(--acc);min-width:60px}
+.sbtn{width:34px;height:34px;border-radius:9px;border:1px solid var(--line2);background:#1a1d23;color:var(--soft);font-weight:700;font-size:13px;flex:none}
+.sbtn.on{background:var(--acc);color:#0B0C0F;border-color:transparent}
+.sbtn.mute.on{background:#FF3B4E;color:#fff}
 .hero{height:170px;border-radius:24px;display:flex;align-items:center;justify-content:center;overflow:hidden}
 .hero img{width:100%;height:100%;object-fit:cover}
 .edit{display:none;gap:8px;flex-wrap:wrap;align-items:center;padding:12px;border-radius:16px;background:var(--card);border:1px solid var(--line)}
@@ -241,6 +248,12 @@ nav.tabs button.on{color:var(--acc);font-weight:600}
         <button class="ghost" id="tDelete" aria-label="Удалить трек" style="color:#ff8a92;flex:none;width:52px;padding:0"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg></button>
       </div>
       <div class="dim" id="tPath" style="font-size:12px;word-break:break-all;display:none"></div>
+      <div class="pcard" id="stemBox" style="gap:10px">
+        <div class="row between"><b style="font-size:16px">Стемы</b><button class="smallbtn acc" id="stemGo">Разделить на стемы</button></div>
+        <span class="dim" style="font-size:13px;line-height:1.5" id="stemMsg">Вокал, ударные, бас и остальное — нейросеть Demucs прямо на твоём Mac, трек никуда не загружается. В первый раз скачается модель (~172 МБ).</span>
+        <div class="prog" id="stemProg" style="display:none"><div></div></div>
+        <div id="stemMixer" style="display:flex;flex-direction:column;gap:8px"></div>
+      </div>
       <div style="display:flex;flex-direction:column;gap:10px">
         <span class="eyebrow">Подходят для сведения</span>
         <div id="tMix" style="display:flex;flex-direction:column;gap:8px"></div>
@@ -312,7 +325,7 @@ nav.tabs button.on{color:var(--acc);font-weight:600}
         <button class="ghost" id="expCsv">Таблица (CSV)</button>
         <input type="file" id="impFile" accept=".json,application/json" style="display:none">
       </div>
-      <span class="dim" style="font-size:12px">Версия приложения: <b id="appVer">2026-11-16 · 11</b></span>
+      <span class="dim" style="font-size:12px">Версия приложения: <b id="appVer">2026-11-16 · 12</b></span>
       <span class="dim" style="font-size:13px;line-height:1.5">«Данные библиотеки» — это BPM, тональности и твои исправления. Сами треки в этот файл не входят. Сохрани его рядом с музыкой в облаке.</span>
     </div>
   </section>
@@ -1190,6 +1203,143 @@ $("#mTitle").onclick=()=>{ if(S.playingId) openTrack(S.playingId); };
 $("#mProg").onclick=(e)=>{ const r=e.currentTarget.getBoundingClientRect(); if(audio.duration) audio.currentTime=(e.clientX-r.left)/r.width*audio.duration; };
 $("#tPlay").onclick=async ()=>{ if (S.playingId===S.current) togglePlay(); else { S.viewTime=0; await playTrack(S.current); } };
 
+/* =====================================================================
+   Stems (Demucs HTDemucs v4 in the browser via onnxruntime-web; audio stays on this device)
+   ===================================================================== */
+const ORT_V="1.19.2";
+const STEM_DEF=[["vocals","Вокал","#3DFF7A"],["drums","Ударные","#FF2D45"],["bass","Бас","#FFB020"],["other","Остальное","#5AAEFF"]];
+const STEMS={proc:null, loading:null, cache:new Map(), id:null, bufs:null, srcs:null, gains:null, playing:false, startAt:0, offset:0, mute:{}, solo:null, vol:{vocals:1,drums:1,bass:1,other:1}, raf:0};
+async function fetchWithProgress(url, onP){
+  const r=await fetch(url); if(!r.ok) throw new Error("Модель не скачалась ("+r.status+")");
+  const total=+r.headers.get("content-length")||0; const rd=r.body.getReader(); const parts=[]; let got=0;
+  for(;;){ const {done,value}=await rd.read(); if(done) break; parts.push(value); got+=value.length; onP&&onP(got,total); }
+  const out=new Uint8Array(got); let o=0; for (const p of parts){ out.set(p,o); o+=p.length; } return out.buffer;
+}
+async function loadDemucs(onDl){
+  if (STEMS.proc) return STEMS.proc;
+  if (!STEMS.loading) STEMS.loading=(async()=>{
+    const ort=await import(`https://cdn.jsdelivr.net/npm/onnxruntime-web@${ORT_V}/dist/ort.webgpu.min.mjs`);
+    ort.env.wasm.wasmPaths=`https://cdn.jsdelivr.net/npm/onnxruntime-web@${ORT_V}/dist/`;
+    if (!self.crossOriginIsolated) ort.env.wasm.numThreads=1;
+    const {DemucsProcessor, CONSTANTS}=await import("https://esm.sh/demucs-web");
+    const ep=("gpu" in navigator) ? ["webgpu","wasm"] : ["wasm"];
+    const proc=new DemucsProcessor({ort, sessionOptions:{executionProviders:ep, graphOptimizationLevel:"all"}, onProgress:(p)=>{ STEMS.onProg && STEMS.onProg(p.progress); }});
+    const url=CONSTANTS.DEFAULT_MODEL_URL; let buf=null;
+    try{ const c=await caches.open("dj-models"); const hit=await c.match(url); if (hit) buf=await hit.arrayBuffer(); }catch(e){}
+    if (!buf){ buf=await fetchWithProgress(url, onDl); try{ const c=await caches.open("dj-models"); await c.put(url, new Response(buf.slice(0))); }catch(e){} }
+    await proc.loadModel(buf);
+    STEMS.proc=proc; STEMS.ep=ep[0]; return proc;
+  })();
+  try{ return await STEMS.loading; } catch(e){ STEMS.loading=null; throw e; }
+}
+async function toStereo44k(file){
+  const buf=await decode(await file.arrayBuffer());
+  const SR=44100, len=Math.ceil(buf.duration*SR), OC=window.OfflineAudioContext||window.webkitOfflineAudioContext;
+  const oc=new OC(2, len, SR); const b=oc.createBuffer(Math.min(2,buf.numberOfChannels), buf.length, buf.sampleRate);
+  for (let c=0;c<b.numberOfChannels;c++) b.getChannelData(c).set(buf.getChannelData(c));
+  const s=oc.createBufferSource(); s.buffer=b; s.connect(oc.destination); s.start();
+  const r=await oc.startRendering(); const L=r.getChannelData(0); const R=r.numberOfChannels>1?r.getChannelData(1):L;
+  return {L:new Float32Array(L), R:new Float32Array(R)};
+}
+function stemMsg(t){ $("#stemMsg").textContent=t; }
+function stemProg(v){ const p=$("#stemProg"); if (v==null){ p.style.display="none"; return; } p.style.display=""; p.firstElementChild.style.width=Math.round(v*100)+"%"; }
+async function runStems(){
+  const id=S.current, t=S.tracks.get(id); if(!t) return;
+  if (STEMS.cache.has(id)){ showMixer(id); return; }
+  if (!S.files.has(id)){ toast("Открой папку или подключи Диск, чтобы разделить трек"); return; }
+  $("#stemGo").disabled=true;
+  try{
+    stemMsg("Загружаю нейросеть…"); stemProg(0);
+    await loadDemucs((got,total)=>{ stemMsg(`Скачиваю модель: ${Math.round(got/1048576)} из ${total?Math.round(total/1048576):172} МБ (только в первый раз)`); stemProg(total?got/total:0); });
+    stemMsg("Готовлю трек…"); stemProg(0);
+    const {L,R}=await toStereo44k(await getFile(id));
+    const t0=performance.now();
+    STEMS.onProg=(p)=>{ const el=(performance.now()-t0)/1000, left=p>0.02? el/p*(1-p):0; stemMsg(`Разделяю: ${Math.round(p*100)}%${left?` · осталось ~${Math.ceil(left/60)} мин`:""} (${STEMS.ep==="webgpu"?"видеокарта":"процессор"})`); stemProg(p); };
+    stemMsg("Разделяю: 0%"); 
+    const res=await STEMS.proc.separate(L,R);
+    STEMS.cache.set(id, res); if (STEMS.cache.size>2) STEMS.cache.delete(STEMS.cache.keys().next().value);
+    stemMsg(`Готово за ${Math.round((performance.now()-t0)/1000)} с. Включай и выключай дорожки или скачай нужную.`); stemProg(null);
+    showMixer(id);
+  }catch(e){ console.warn(e); stemMsg("Не получилось разделить: "+(e && e.message || e)); stemProg(null); }
+  $("#stemGo").disabled=false;
+}
+function stemGain(k){ const solo=STEMS.solo; if (solo) return solo===k ? STEMS.vol[k] : 0; return STEMS.mute[k] ? 0 : STEMS.vol[k]; }
+function applyGains(){ if (!STEMS.gains) return; for (const [k] of STEM_DEF) STEMS.gains[k].gain.setTargetAtTime(stemGain(k), actx().currentTime, 0.01); }
+function stemPos(){ return STEMS.playing ? STEMS.offset + (actx().currentTime-STEMS.startAt) : STEMS.offset; }
+function stemStop(keep=true){
+  if (STEMS.srcs){ for (const k in STEMS.srcs){ try{ STEMS.srcs[k].stop(); }catch(e){} } }
+  if (keep && STEMS.playing) STEMS.offset=stemPos();
+  STEMS.srcs=null; STEMS.playing=false; cancelAnimationFrame(STEMS.raf); renderStemTransport();
+}
+function stemPlay(){
+  const ctx=actx(); if (ctx.state==="suspended") ctx.resume();
+  if (!audio.paused) audio.pause();
+  const dur=STEMS.bufs.vocals.duration; if (STEMS.offset>=dur-0.05) STEMS.offset=0;
+  STEMS.srcs={}; STEMS.gains=STEMS.gains||{};
+  for (const [k] of STEM_DEF){
+    const src=ctx.createBufferSource(); src.buffer=STEMS.bufs[k];
+    const g=STEMS.gains[k] || (STEMS.gains[k]=ctx.createGain()); g.gain.value=stemGain(k);
+    if (!g._c){ g.connect(ctx.destination); g._c=true; }
+    src.connect(g); src.start(0, STEMS.offset); STEMS.srcs[k]=src;
+  }
+  STEMS.srcs.vocals.onended=()=>{ if (STEMS.playing && stemPos()>=dur-0.1){ STEMS.offset=0; stemStop(false); } };
+  STEMS.startAt=ctx.currentTime; STEMS.playing=true;
+  const tick=()=>{ renderStemTransport(); if (STEMS.playing) STEMS.raf=requestAnimationFrame(tick); }; tick();
+}
+function renderStemTransport(){
+  const b=$("#stemPlayBtn"); if(!b || !STEMS.bufs) return;
+  b.innerHTML=(STEMS.playing?ICON_PAUSE:ICON_PLAY)+(STEMS.playing?"Пауза":"Играть стемы");
+  const dur=STEMS.bufs.vocals.duration, pos=Math.min(dur, stemPos());
+  $("#stemPos").textContent=fmtTime(pos)+" / "+fmtTime(dur);
+  const pr=$("#stemSeek"); if (pr && document.activeElement!==pr) pr.value=String(Math.round(pos/dur*1000));
+}
+function wavBlob(L, R){
+  const n=L.length, buf=new ArrayBuffer(44+n*4), dv=new DataView(buf), w=(o,s)=>{ for(let i=0;i<4;i++) dv.setUint8(o+i,s.charCodeAt(i)); };
+  w(0,"RIFF"); dv.setUint32(4,36+n*4,true); w(8,"WAVE"); w(12,"fmt "); dv.setUint32(16,16,true); dv.setUint16(20,1,true); dv.setUint16(22,2,true);
+  dv.setUint32(24,44100,true); dv.setUint32(28,44100*4,true); dv.setUint16(32,4,true); dv.setUint16(34,16,true); w(36,"data"); dv.setUint32(40,n*4,true);
+  let o=44; for (let i=0;i<n;i++){ dv.setInt16(o,Math.max(-1,Math.min(1,L[i]))*32767,true); dv.setInt16(o+2,Math.max(-1,Math.min(1,R[i]))*32767,true); o+=4; }
+  return new Blob([buf],{type:"audio/wav"});
+}
+function saveBlob(blob, name){ const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=name; document.body.appendChild(a); a.click(); setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); },1000); }
+function exportStem(kind){
+  const res=STEMS.cache.get(STEMS.id), t=S.tracks.get(STEMS.id); if(!res||!t) return;
+  const base=(t.artist?t.artist+" - ":"")+t.title;
+  if (kind==="inst"){ const n=res.drums.left.length, L=new Float32Array(n), R=new Float32Array(n);
+    for (const k of ["drums","bass","other"]){ const a=res[k]; for(let i=0;i<n;i++){ L[i]+=a.left[i]; R[i]+=a.right[i]; } }
+    saveBlob(wavBlob(L,R), base+" (Instrumental).wav"); return; }
+  const a=res[kind]; const nm={vocals:"Vocals",drums:"Drums",bass:"Bass",other:"Other"}[kind];
+  saveBlob(wavBlob(a.left,a.right), `${base} (${nm}).wav`);
+}
+function showMixer(id){
+  stemStop(false); STEMS.offset=0; STEMS.id=id; STEMS.mute={}; STEMS.solo=null;
+  const res=STEMS.cache.get(id), ctx=actx(); STEMS.bufs={};
+  for (const [k] of STEM_DEF){ const a=res[k], b=ctx.createBuffer(2, a.left.length, 44100); b.getChannelData(0).set(a.left); b.getChannelData(1).set(a.right); STEMS.bufs[k]=b; }
+  $("#stemMixer").innerHTML = `<div class="row" style="gap:10px;flex-wrap:wrap"><button class="big" id="stemPlayBtn" style="flex:1;height:46px"></button><span class="dim" id="stemPos" style="font-family:var(--mono);font-size:12px"></span></div>
+    <input type="range" id="stemSeek" min="0" max="1000" value="0" aria-label="Перемотка стемов" style="width:100%;accent-color:var(--acc)">`+
+    STEM_DEF.map(([k,nm,col])=>`<div class="stemrow"><span class="nm"><i style="background:${col}"></i>${nm}</span>
+      <button class="sbtn mute" data-mute="${k}" aria-label="Выключить ${nm}">M</button><button class="sbtn" data-solo="${k}" aria-label="Только ${nm}">S</button>
+      <input type="range" min="0" max="150" value="100" data-vol="${k}" aria-label="Громкость ${nm}">
+      <button class="sbtn" data-exp="${k}" aria-label="Скачать ${nm} в WAV" title="Скачать WAV">↓</button></div>`).join("")+
+    `<button class="ghost" data-exp="inst" style="height:44px">Скачать инструментал без вокала (WAV)</button>`;
+  $("#stemPlayBtn").onclick=()=>{ STEMS.playing ? stemStop() : stemPlay(); };
+  $("#stemSeek").oninput=(e)=>{ const dur=STEMS.bufs.vocals.duration, was=STEMS.playing; stemStop(false); STEMS.offset=e.target.value/1000*dur; if (was) stemPlay(); else renderStemTransport(); };
+  renderStemTransport();
+}
+$("#stemMixer").addEventListener("click",(e)=>{
+  const m=e.target.closest("[data-mute]"), so=e.target.closest("[data-solo]"), ex=e.target.closest("[data-exp]");
+  if (m){ const k=m.dataset.mute; STEMS.mute[k]=!STEMS.mute[k]; m.classList.toggle("on",!!STEMS.mute[k]); applyGains(); }
+  if (so){ const k=so.dataset.solo; STEMS.solo = STEMS.solo===k ? null : k; document.querySelectorAll("[data-solo]").forEach(b=>b.classList.toggle("on", b.dataset.solo===STEMS.solo)); applyGains(); }
+  if (ex) exportStem(ex.dataset.exp);
+});
+$("#stemMixer").addEventListener("input",(e)=>{ const v=e.target.closest("[data-vol]"); if (v){ STEMS.vol[v.dataset.vol]=v.value/100; applyGains(); } });
+$("#stemGo").onclick=runStems;
+audio.addEventListener("play", ()=>{ if (STEMS.playing) stemStop(); });
+function resetStemsView(id){
+  if (STEMS.id!==id){ stemStop(false); }
+  if (STEMS.cache.has(id)){ showMixer(id); stemMsg("Стемы готовы."); }
+  else { $("#stemMixer").innerHTML=""; stemProg(null); stemMsg("Вокал, ударные, бас и остальное — нейросеть Demucs прямо на твоём Mac, трек никуда не загружается. В первый раз скачается модель (~172 МБ)."); }
+}
+
 $("#tReveal").onclick=()=>{ const p=$("#tPath"); p.style.display = p.style.display==="none" ? "" : "none"; };
 
 /* =====================================================================
@@ -1202,7 +1352,7 @@ function show(view){
   document.querySelectorAll("nav.tabs button").forEach(b=>b.classList.toggle("on", b.dataset.tab===(view==="track"?lastTab:view)));
   window.scrollTo(0,0);
 }
-function openTrack(id){ S.current=id; if (S.playingId!==id){ S.viewTime=0; S.viewFor=id; } $("#editRow").classList.remove("on"); $("#tPath").style.display="none"; renderTrack(); show("track"); requestAnimationFrame(drawWaves); }
+function openTrack(id){ S.current=id; try{ resetStemsView(id); }catch(e){} if (S.playingId!==id){ S.viewTime=0; S.viewFor=id; } $("#editRow").classList.remove("on"); $("#tPath").style.display="none"; renderTrack(); show("track"); requestAnimationFrame(drawWaves); }
 document.querySelectorAll("nav.tabs button").forEach(b=>b.onclick=()=>{ lastTab=b.dataset.tab; show(b.dataset.tab); });
 $("#backBtn").onclick=()=>show(lastTab);
 document.addEventListener("click",(e)=>{
@@ -1649,7 +1799,7 @@ function cloudFromUrl(){
   }catch(e){ return null; }
 }
 
-const APP_VER = "2026-11-16 · 11";
+const APP_VER = "2026-11-16 · 12";
 (async function checkUpdate(){
   try{
     if (location.protocol!=="https:") return;
