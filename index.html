@@ -90,7 +90,7 @@ nav.tabs button.on{color:var(--acc);font-weight:600}
 .wave div{flex:1;border-radius:2px;background:#2E333C}
 .wbox{display:flex;flex-direction:column;gap:8px;padding:12px;border-radius:20px;background:#08090B;border:1px solid var(--line)}
 .wdwrap{position:relative}
-.wdetail{width:100%;height:132px;display:block;border-radius:12px;background:#050608;cursor:pointer;touch-action:none}
+.wdetail{width:100%;height:150px;display:block;border-radius:12px;background:#050608;cursor:pointer;touch-action:none}
 .wover{width:100%;height:44px;display:block;border-radius:8px;background:#050608;cursor:pointer}
 .wmsg{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:13px;pointer-events:none}
 .legend{display:flex;gap:10px;flex-wrap:wrap;font-size:11px;color:var(--muted)}
@@ -214,7 +214,7 @@ nav.tabs button.on{color:var(--acc);font-weight:600}
       </div>
       <div class="wbox">
         <div class="row between">
-          <div class="legend"><span><i style="background:#FF3B4E"></i>бочка · бас</span><span><i style="background:#3BE37A"></i>вокал · середина</span><span><i style="background:#4EA0FF"></i>верха</span></div>
+          <div class="legend"><span><i style="background:#FF2D45"></i>бочка · бас</span><span><i style="background:#3DFF7A"></i>вокал · середина</span><span><i style="background:#D6ECFF"></i>верха</span></div>
           <div class="row" style="gap:6px"><button class="zbtn" id="zOut" aria-label="Отдалить">−</button><button class="zbtn" id="zIn" aria-label="Приблизить">+</button></div>
         </div>
         <div class="wdwrap"><canvas id="tDetail" class="wdetail" aria-label="Волна трека с сеткой, нажми для перемотки"></canvas><div class="wmsg" id="tDetailMsg"></div></div>
@@ -297,7 +297,7 @@ nav.tabs button.on{color:var(--acc);font-weight:600}
         <button class="ghost" id="expCsv">Таблица (CSV)</button>
         <input type="file" id="impFile" accept=".json,application/json" style="display:none">
       </div>
-      <span class="dim" style="font-size:12px">Версия приложения: <b id="appVer">2026-11-16 · 7</b></span>
+      <span class="dim" style="font-size:12px">Версия приложения: <b id="appVer">2026-11-16 · 8</b></span>
       <span class="dim" style="font-size:13px;line-height:1.5">«Данные библиотеки» — это BPM, тональности и твои исправления. Сами треки в этот файл не входят. Сохрани его рядом с музыкой в облаке.</span>
     </div>
   </section>
@@ -967,7 +967,7 @@ function renderTrack(){
   $("#tKeyBox").querySelector("small").textContent = k ? "Ключ · "+CAMELOT_NAME[k] : "Ключ";
   $("#tFmt").textContent = (t.fmt||"") + (t.bitrate && t.fmt==="MP3" ? " "+Math.min(320,t.bitrate) : "");
   $("#tDur").textContent = fmtTime(t.dur);
-  if (S.viewFor!==t.id){ S.viewFor=t.id; S.viewTime = (t.firstBeat ?? 0) + Math.min(30, (t.dur||60)*0.25); }
+  if (S.viewFor!==t.id){ S.viewFor=t.id; S.viewTime = 0; }
   ensureDetail(t.id);
   $("#tPath").textContent = t.path;
   // mix suggestions
@@ -1021,52 +1021,87 @@ function fitCanvas(c){
   return {g:c.getContext("2d"), W:w, H:h, dpr};
 }
 function gridOf(t){ const b=effBpm(t); if(!b || t.firstBeat==null) return null; return {P:60/b, first:t.firstBeat+(t.gridShift||0), off:t.barOffset||0}; }
-function curTime(t){ return (S.playingId===t.id && audio.duration) ? audio.currentTime : (S.viewTime||0); }
+function curTime(t){
+  if (!(S.playingId===t.id && audio.duration)) return S.viewTime||0;
+  const ct=audio.currentTime, now=performance.now();
+  if (audio.paused){ S._ct=ct; S._ctAt=now; return ct; }
+  if (ct!==S._ct){ S._ct=ct; S._ctAt=now; }
+  // smooth between the browser's coarse time updates
+  return Math.min(ct+0.25, S._ct + (now-S._ctAt)/1000*(audio.playbackRate||1));
+}
+/* rekordbox-style layered waveform: lows (red) outside, mids (green) inside, highs (white-blue) core.
+   Pre-rendered once into tiles, then only shifted while playing -> smooth, no flicker. */
+const WCOL={lo:"#FF2D45", mi:"#3DFF7A", hi:"#D6ECFF"};
+const WTILE=2048, WTH=240;
+const _wcache=new Map();
+function boost(v){ return Math.pow(v/255, 0.75); }
+function renderTiles(w){
+  const n=w.lo.length, tiles=[];
+  for (let t0=0; t0<n; t0+=WTILE){
+    const cols=Math.min(WTILE, n-t0), c=document.createElement("canvas"); c.width=cols; c.height=WTH;
+    const g=c.getContext("2d"), mid=WTH/2;
+    const layer=(arr, scale, color)=>{ g.fillStyle=color; g.beginPath();
+      for (let x=0;x<cols;x++){ const h=Math.max(0.6, boost(arr[t0+x])*mid*scale); g.rect(x, mid-h, 1, h*2); } g.fill(); };
+    layer(w.lo, 0.97, WCOL.lo);
+    layer(w.mi, 0.72, WCOL.mi);
+    layer(w.hi, 0.42, WCOL.hi);
+    tiles.push({c, x0:t0, cols});
+  }
+  return tiles;
+}
+function tilesFor(t){
+  const det=S.detail.get(t.id), w=det||t.wave; if(!w) return null;
+  const key=t.id+(det?"|d":"|o"), hit=_wcache.get(key); if (hit) return hit;
+  const v={tiles:renderTiles(w), cps: det ? DETAIL_CPS : w.lo.length/(t.dur||1), n:w.lo.length};
+  _wcache.set(key, v); if (_wcache.size>8) _wcache.delete(_wcache.keys().next().value);
+  return v;
+}
+function drawTiles(g, v, startCol, colsVisible, W, H){
+  const sc=W/colsVisible;
+  g.imageSmoothingEnabled=true; g.imageSmoothingQuality="high";
+  for (const tl of v.tiles){
+    const a=Math.max(startCol, tl.x0), b=Math.min(startCol+colsVisible, tl.x0+tl.cols); if (b<=a) continue;
+    g.drawImage(tl.c, a-tl.x0, 0, b-a, WTH, (a-startCol)*sc, 0, (b-a)*sc, H);
+  }
+}
+const _ovr={key:"", img:null};
 function drawOverview(t){
   const c=$("#tOver"); if(!c || !c.clientWidth) return; const {g,W,H}=fitCanvas(c);
-  g.clearRect(0,0,W,H); const w=t.wave; if(!w){ g.fillStyle="#1b1e24"; g.fillRect(0,H/2-1,W,2); return; }
-  const n=w.lo.length, dur=t.dur||1, now=curTime(t), px=now/dur*W, mid=H/2;
-  for (let x=0;x<W;x++){
-    const ci=Math.min(n-1, Math.floor(x/W*n));
-    let [r,gg,b]=colRGB(w.lo[ci],w.mi[ci],w.hi[ci]);
-    if (x>px){ r*=0.62; gg*=0.62; b*=0.62; }
-    const hh=Math.max(1,(0.7*w.amp[ci]/255+0.3*Math.max(w.lo[ci],w.mi[ci],w.hi[ci])/255)*(H*0.92));
-    g.fillStyle=`rgb(${r|0},${gg|0},${b|0})`; g.fillRect(x, mid-hh/2, 1, hh);
+  g.clearRect(0,0,W,H); if(!t.wave){ g.fillStyle="#1b1e24"; g.fillRect(0,H/2-1,W,2); return; }
+  const key=t.id+"|"+W+"x"+H;
+  if (_ovr.key!==key){
+    const off=document.createElement("canvas"); off.width=W; off.height=H; const og=off.getContext("2d");
+    const v={tiles:renderTiles(t.wave), n:t.wave.lo.length};
+    drawTiles(og, v, 0, v.n, W, H); _ovr.key=key; _ovr.img=off;
   }
-  // viewport of the detail view
-  const z=S.zoom; g.strokeStyle="rgba(255,255,255,.35)"; g.lineWidth=1; g.strokeRect(((now-z/2)/dur)*W, 0.5, z/dur*W, H-1);
-  g.fillStyle="#fff"; g.fillRect(Math.round(px)-1,0,2,H);
+  g.drawImage(_ovr.img, 0, 0);
+  const px=curTime(t)/(t.dur||1)*W;
+  g.fillStyle="#fff"; g.fillRect(px-1,0,2,H);
 }
 function drawDetail(t){
   const c=$("#tDetail"); if(!c || !c.clientWidth) return; const {g,W,H,dpr}=fitCanvas(c);
   g.clearRect(0,0,W,H);
-  const det=S.detail.get(t.id), w=det||t.wave; if(!w) return;
-  const cps = det ? DETAIL_CPS : (w.lo.length/(t.dur||1));
-  const n=w.lo.length, z=S.zoom, now=curTime(t), start=now-z/2, mid=H/2;
-  for (let x=0;x<W;x++){
-    const tm=start + x/W*z; if (tm<0 || tm>(t.dur||0)) continue;
-    const ci=Math.min(n-1, Math.floor(tm*cps));
-    let [r,gg,b]=colRGB(w.lo[ci],w.mi[ci],w.hi[ci]);
-    if (tm>now){ r*=0.93; gg*=0.93; b*=0.93; }
-    const hh=Math.max(1,(0.62*w.amp[ci]/255+0.38*Math.max(w.lo[ci],w.mi[ci],w.hi[ci])/255)*(H*0.86));
-    g.fillStyle=`rgb(${r|0},${gg|0},${b|0})`; g.fillRect(x, mid-hh/2, 1, hh);
-  }
+  const v=tilesFor(t); if(!v) return;
+  const z=S.zoom, now=curTime(t), start=now-z/2;
+  drawTiles(g, v, start*v.cps, z*v.cps, W, H);
+  // centre line
+  g.fillStyle="rgba(255,255,255,.08)"; g.fillRect(0,H/2-0.5,W,1);
   // beat grid
   const gr=gridOf(t);
   if (gr){
     const n0=Math.ceil((start-gr.first)/gr.P), n1=Math.floor((start+z-gr.first)/gr.P);
     g.font=`${10*dpr}px ui-monospace, Menlo, monospace`; g.textBaseline="top";
     for (let k=n0;k<=n1;k++){
-      const bt=gr.first+k*gr.P; if (bt<0) continue; const x=Math.round((bt-start)/z*W);
+      const bt=gr.first+k*gr.P; if (bt<0) continue; const x=(bt-start)/z*W;
       const isBar=(((k-gr.off)%4)+4)%4===0;
-      if (isBar){ g.fillStyle="rgba(255,70,80,.95)"; g.fillRect(x-1,0,2*dpr/1.5,H); const bar=Math.floor((k-gr.off)/4)+1; if (bar>0){ g.fillStyle="rgba(255,120,120,.95)"; g.fillText(String(bar), x+3*dpr, 3*dpr); } }
-      else { g.fillStyle="rgba(255,255,255,.26)"; g.fillRect(x,0,1,H); }
+      if (isBar){ g.fillStyle="rgba(255,60,70,.95)"; g.fillRect(x-dpr,0,2*dpr,H); const bar=Math.floor((k-gr.off)/4)+1; if (bar>0){ g.fillStyle="#FF8A92"; g.fillText(String(bar), x+3*dpr, 3*dpr); } }
+      else { g.fillStyle="rgba(255,255,255,.32)"; g.fillRect(x-0.5*dpr,0,dpr,H); }
     }
     const cur=Math.floor((now-gr.first)/gr.P)-gr.off; const bar=Math.floor(cur/4)+1, beat=((cur%4)+4)%4+1;
     $("#tBars").textContent = now>=gr.first ? `такт ${bar} · доля ${beat}` : "";
   } else $("#tBars").textContent="";
   // playhead
-  g.fillStyle="#fff"; g.fillRect(Math.round(W/2)-1,0,2*dpr/1.5,H);
+  g.fillStyle="#fff"; g.fillRect(W/2-dpr,0,2*dpr,H);
   g.beginPath(); g.moveTo(W/2-6*dpr,0); g.lineTo(W/2+6*dpr,0); g.lineTo(W/2,7*dpr); g.closePath(); g.fill();
 }
 function drawWaves(){
@@ -1113,7 +1148,7 @@ audio.addEventListener("ended", ()=>{ updatePlayButtons(); });
 $("#mPlay").onclick=togglePlay;
 $("#mTitle").onclick=()=>{ if(S.playingId) openTrack(S.playingId); };
 $("#mProg").onclick=(e)=>{ const r=e.currentTarget.getBoundingClientRect(); if(audio.duration) audio.currentTime=(e.clientX-r.left)/r.width*audio.duration; };
-$("#tPlay").onclick=async ()=>{ if (S.playingId===S.current) togglePlay(); else { const vt=S.viewTime||0; await playTrack(S.current); const go=()=>{ if (vt>1) audio.currentTime=vt; }; if (audio.duration) go(); else audio.addEventListener("loadedmetadata", go, {once:true}); } };
+$("#tPlay").onclick=async ()=>{ if (S.playingId===S.current) togglePlay(); else { const vt=S.viewTime||0; await playTrack(S.current); const go=()=>{ if (vt>0.05) audio.currentTime=vt; }; if (audio.duration) go(); else audio.addEventListener("loadedmetadata", go, {once:true}); } };
 
 $("#tReveal").onclick=()=>{ const p=$("#tPath"); p.style.display = p.style.display==="none" ? "" : "none"; };
 
