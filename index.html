@@ -228,7 +228,7 @@ nav.tabs button.on{color:var(--acc);font-weight:600}
       </div>
       <div class="wbox">
         <div class="row between">
-          <div class="legend"><span><i style="background:#FF1F3D"></i>бочка · бас</span><span><i style="background:#22FF66"></i>вокал · середина</span><span><i style="background:#FFFFFF"></i>верха</span></div>
+          <div class="legend"><span><i style="background:#FF2848"></i>бочка · бас</span><span><i style="background:#28FF6E"></i>вокал · середина</span><span><i style="background:#5AAEFF"></i>верха</span></div>
           <div class="row" style="gap:6px"><button class="zbtn" id="zOut" aria-label="Отдалить">−</button><button class="zbtn" id="zIn" aria-label="Приблизить">+</button></div>
         </div>
         <div class="wdwrap"><canvas id="tDetail" class="wdetail" aria-label="Волна трека с сеткой, нажми для перемотки"></canvas><div class="wmsg" id="tDetailMsg"></div></div>
@@ -312,7 +312,7 @@ nav.tabs button.on{color:var(--acc);font-weight:600}
         <button class="ghost" id="expCsv">Таблица (CSV)</button>
         <input type="file" id="impFile" accept=".json,application/json" style="display:none">
       </div>
-      <span class="dim" style="font-size:12px">Версия приложения: <b id="appVer">2026-11-16 · 10</b></span>
+      <span class="dim" style="font-size:12px">Версия приложения: <b id="appVer">2026-11-16 · 11</b></span>
       <span class="dim" style="font-size:13px;line-height:1.5">«Данные библиотеки» — это BPM, тональности и твои исправления. Сами треки в этот файл не входят. Сохрани его рядом с музыкой в облаке.</span>
     </div>
   </section>
@@ -1042,9 +1042,10 @@ function updatePlayButtons(){
 const DETAIL_CPS = 150;
 function colRGB(lo, mi, hi){
   const l=lo/255, m=mi/255*0.92, h=hi/255*0.78, sum=l+m+h+1e-6;
-  let r=(l*255+m*59+h*78)/sum, g=(l*59+m*227+h*160)/sum, b=(l*78+m*122+h*255)/sum;
-  const e=Math.min(1, Math.max(l,m,h)*1.2), k=0.7+0.45*e;
-  return [Math.min(255,r*k), Math.min(255,g*k), Math.min(255,b*k)];
+  let r=(l*255+m*40+h*90)/sum, g=(l*40+m*255+h*170)/sum, b=(l*60+m*110+h*255)/sum;
+  const mx=Math.max(r,g,b,1); r=r/mx*255; g=g/mx*255; b=b/mx*255;          // full brightness
+  const e=Math.min(1, Math.max(l,m,h)*1.25), k=0.78+0.22*e;
+  return [r*k, g*k, b*k];
 }
 function fitCanvas(c){
   const dpr=Math.min(2, window.devicePixelRatio||1), w=Math.max(10, Math.round(c.clientWidth*dpr)), h=Math.max(10, Math.round(c.clientHeight*dpr));
@@ -1071,18 +1072,18 @@ function renderTiles(w){
   for (let t0=0; t0<n; t0+=WTILE){
     const cols=Math.min(WTILE, n-t0), c=document.createElement("canvas"); c.width=cols; c.height=WTH;
     const g=c.getContext("2d"), mid=WTH/2;
-    const layer=(arr, scale, color)=>{ g.fillStyle=color; g.beginPath();
-      for (let x=0;x<cols;x++){ const h=Math.max(0.6, boost(arr[t0+x])*mid*scale); g.rect(x, mid-h, 1, h*2); } g.fill(); };
-    layer(w.lo, 0.97, WCOL.lo);
-    layer(w.mi, 0.72, WCOL.mi);
-    layer(w.hi, 0.42, WCOL.hi);
+    for (let x=0;x<cols;x++){
+      const ci=t0+x, [r,gg,b]=colRGB(w.lo[ci],w.mi[ci],w.hi[ci]);
+      const hh=Math.max(1,(0.62*w.amp[ci]/255+0.38*Math.max(w.lo[ci],w.mi[ci],w.hi[ci])/255)*(WTH*0.9));
+      g.fillStyle=`rgb(${r|0},${gg|0},${b|0})`; g.fillRect(x, mid-hh/2, 1, hh);
+    }
     tiles.push({c, x0:t0, cols});
   }
   return tiles;
 }
 function tilesFor(t){
   const det=S.detail.get(t.id), w=det||t.wave; if(!w) return null;
-  const key=t.id+(det?"|d":"|o"), hit=_wcache.get(key); if (hit) return hit;
+  const key=t.id+(det?"|d":"|o")+"|v11", hit=_wcache.get(key); if (hit) return hit;
   const v={tiles:renderTiles(w), cps: det ? DETAIL_CPS : w.lo.length/(t.dur||1), n:w.lo.length};
   _wcache.set(key, v); if (_wcache.size>8) _wcache.delete(_wcache.keys().next().value);
   return v;
@@ -1099,13 +1100,17 @@ const _ovr={key:"", img:null};
 function drawOverview(t){
   const c=$("#tOver"); if(!c || !c.clientWidth) return; const {g,W,H}=fitCanvas(c);
   g.clearRect(0,0,W,H); const w=t.wave; if(!w){ g.fillStyle="#1b1e24"; g.fillRect(0,H/2-1,W,2); return; }
-  const key=t.id+"|"+W+"x"+H+"|"+WCOL.lo;
+  const key=t.id+"|"+W+"x"+H+"|v11b";
   if (_ovr.key!==key){
     const off=document.createElement("canvas"); off.width=W; off.height=H; const og=off.getContext("2d"), mid=H/2, n=w.lo.length;
-    const mx=(arr,a,b)=>{ let m=0; for(let i=a;i<b;i++) if(arr[i]>m) m=arr[i]; return m; };
-    const lay=(arr, scale, color)=>{ og.fillStyle=color; og.beginPath();
-      for (let x=0;x<W;x++){ const a=Math.floor(x/W*n), b=Math.max(a+1, Math.floor((x+1)/W*n)); const h=Math.max(0.8, Math.pow(mx(arr,a,b)/255,0.6)*mid*scale); og.rect(x, mid-h, 1, h*2); } og.fill(); };
-    lay(w.lo, 1.0, WCOL.lo); lay(w.mi, 0.5, WCOL.mi); lay(w.hi, 0.28, WCOL.hi);
+    for (let x=0;x<W;x++){
+      const a=Math.floor(x/W*n), b=Math.max(a+1, Math.floor((x+1)/W*n));
+      let bi=a; for (let i=a;i<b&&i<n;i++) if (w.amp[i]>w.amp[bi]) bi=i;     // loudest column keeps its own colour
+      const lo=w.lo[bi], mi=w.mi[bi], hi=w.hi[bi], amp=w.amp[bi];
+      const [r,gg,bb]=colRGB(lo,mi,hi);
+      const hh=Math.max(1,(0.7*amp/255+0.3*Math.max(lo,mi,hi)/255)*(H*0.94));
+      og.fillStyle=`rgb(${r|0},${gg|0},${bb|0})`; og.fillRect(x, mid-hh/2, 1, hh);
+    }
     _ovr.key=key; _ovr.img=off;
   }
   g.drawImage(_ovr.img, 0, 0);
@@ -1644,7 +1649,7 @@ function cloudFromUrl(){
   }catch(e){ return null; }
 }
 
-const APP_VER = "2026-11-16 · 10";
+const APP_VER = "2026-11-16 · 11";
 (async function checkUpdate(){
   try{
     if (location.protocol!=="https:") return;
