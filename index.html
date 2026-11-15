@@ -198,6 +198,7 @@ nav.tabs button.on{color:var(--acc);font-weight:600}
         <button class="pill" id="clearPill" style="display:none">Сбросить</button>
       </div>
     </div>
+    <div class="note" id="syncBanner" style="display:none;margin:0 16px 10px"><div style="flex:1;display:flex;flex-direction:column;gap:2px"><b>Войди в Google</b><span>Есть изменения или треки, которые ждут загрузки и синхронизации с телефоном.</span></div><button class="smallbtn acc" id="syncLogin">Войти</button></div>
     <div class="list" id="list"></div>
     <div id="libEmpty"></div>
   </section>
@@ -314,7 +315,7 @@ nav.tabs button.on{color:var(--acc);font-weight:600}
         <div class="row" style="flex-wrap:wrap;gap:10px">
           <button class="big" id="cSave">Подключить</button>
           <button class="ghost" id="cRefresh">Обновить</button>
-          <button class="ghost" id="cPhone">Ссылка для телефона</button>
+          <button class="ghost" id="cPhone">Подключить телефон / Telegram</button>
           <button class="ghost" id="cOff">Отключить</button>
         </div>
         <div style="height:1px;background:var(--line);margin:6px 0"></div>
@@ -337,7 +338,7 @@ nav.tabs button.on{color:var(--acc);font-weight:600}
         <button class="ghost" id="expCsv">Таблица (CSV)</button>
         <input type="file" id="impFile" accept=".json,application/json" style="display:none">
       </div>
-      <span class="dim" style="font-size:12px">Версия приложения: <b id="appVer">2026-11-16 · 14</b></span>
+      <span class="dim" style="font-size:12px">Версия приложения: <b id="appVer">2026-11-16 · 15</b></span>
       <span class="dim" style="font-size:13px;line-height:1.5">«Данные библиотеки» — это BPM, тональности и твои исправления. Сами треки в этот файл не входят. Сохрани его рядом с музыкой в облаке.</span>
     </div>
   </section>
@@ -1464,25 +1465,34 @@ async function readEntry(entry, prefix, out){
 $("#editBtn").onclick=()=>$("#editRow").classList.toggle("on");
 $("#eHalf").onclick=()=>{ const v=parseFloat($("#eBpm").value); if(v) $("#eBpm").value=Math.round(v/2*10)/10; };
 $("#eDouble").onclick=()=>{ const v=parseFloat($("#eBpm").value); if(v) $("#eBpm").value=Math.round(v*2*10)/10; };
-$("#eSave").onclick=async ()=>{ const t=S.tracks.get(S.current); const v=parseFloat($("#eBpm").value); t.bpmUser = (!isNaN(v) && v!==t.bpm) ? v : (isNaN(v)?t.bpmUser:null); if(!isNaN(v) && v===t.bpm) t.bpmUser=null; const k=$("#eKey").value||null; t.keyUser = (k && k!==t.key) ? k : null; await DB.put(t); $("#editRow").classList.remove("on"); renderTrack(); renderList(); toast("Сохранено"); };
-const nudge=async (dt)=>{ const t=S.tracks.get(S.current); t.gridShift=Math.round(((t.gridShift||0)+dt)*1000)/1000; await DB.put(t); drawWaves(); };
+$("#eSave").onclick=async ()=>{ const t=S.tracks.get(S.current); t.editedAt=Date.now(); const v=parseFloat($("#eBpm").value); t.bpmUser = (!isNaN(v) && v!==t.bpm) ? v : (isNaN(v)?t.bpmUser:null); if(!isNaN(v) && v===t.bpm) t.bpmUser=null; const k=$("#eKey").value||null; t.keyUser = (k && k!==t.key) ? k : null; await DB.put(t); $("#editRow").classList.remove("on"); renderTrack(); renderList(); toast("Сохранено"); };
+const nudge=async (dt)=>{ const t=S.tracks.get(S.current); t.editedAt=Date.now(); t.gridShift=Math.round(((t.gridShift||0)+dt)*1000)/1000; await DB.put(t); drawWaves(); };
 $("#gLeft").onclick=()=>nudge(-0.01); $("#gRight").onclick=()=>nudge(0.01);
 $("#gHalf").onclick=()=>{ const t=S.tracks.get(S.current); const b=effBpm(t); if(b) nudge(30/b); };
-$("#gBar").onclick=async ()=>{ const t=S.tracks.get(S.current); t.barOffset=((t.barOffset||0)+1)%4; await DB.put(t); drawWaves(); };
+$("#gBar").onclick=async ()=>{ const t=S.tracks.get(S.current); t.editedAt=Date.now(); t.barOffset=((t.barOffset||0)+1)%4; await DB.put(t); drawWaves(); };
 $("#eReset").onclick=async ()=>{ const t=S.tracks.get(S.current); t.bpmUser=null; t.keyUser=null; t.gridShift=0; t.barOffset=0; await DB.put(t); renderTrack(); renderList(); toast("Вернул определённые значения"); };
 
 /* ---------- export / import ---------- */
 function download(name, text, type){ const a=document.createElement("a"); a.href=URL.createObjectURL(new Blob([text],{type})); a.download=name; document.body.appendChild(a); a.click(); setTimeout(()=>{URL.revokeObjectURL(a.href); a.remove();},500); }
 $("#expJson").onclick=()=>{ const data={app:"dj-library",version:1,exportedAt:new Date().toISOString(),root:S.rootName,hiddenFolders:[...S.hiddenFolders],tracks:[...S.tracks.values()].map(({cover,...t})=>t)}; download("dj-library-data.json", JSON.stringify(data), "application/json"); };
 $("#impJson").onclick=()=>$("#impFile").click();
-async function mergeData(data){
-  let n=0;
-  for (const t of (data && data.tracks) || []){
-    const ex=S.tracks.get(t.id);
-    if (ex && ex.analyzed && (ex.av||1)>=2 && (ex.analyzedAt||0)>=(t.analyzedAt||0)) continue;
-    const merged = ex ? {...ex, ...t, ...(ex.cover?{cover:ex.cover}:{}), missing:ex.missing} : {...t, missing:true};
-    S.tracks.set(t.id, merged); await DB.put(merged); n++;
-  }
+const stamp=(t)=>Math.max(t.editedAt||0, t.analyzedAt||0);
+async function mergeData(data, fromCloud){
+  let n=0; S._merging=true;
+  try{
+    for (const t of (data && data.tracks) || []){
+      const ex=S.tracks.get(t.id);
+      if (ex && ex.analyzed && (ex.av||1)>=2 && stamp(ex)>=stamp(t)) continue;
+      const merged = ex ? {...ex, ...t, ...(ex.cover?{cover:ex.cover}:{}), missing:ex.missing} : {...t, missing:!S.files.has(t.id)};
+      S.tracks.set(t.id, merged); await DB.put(merged); n++;
+    }
+    const rt=Date.parse(data && data.exportedAt)||0;
+    if (data && data.profile && rt > (P.syncedAt||0) && !(CLOUD.cfg && CLOUD.cfg.clientId && tokenValid())){
+      const pr=data.profile; Object.assign(P, {name:pr.name??P.name, skin:pr.skin||P.skin, tone:pr.tone??P.tone, avatar:pr.avatar||P.avatar, lastLevel:Math.max(P.lastLevel||1, pr.lastLevel||1), syncedAt:rt});
+      await DB.setMeta("profile", {...P});
+    }
+    if (data && Array.isArray(data.hiddenFolders) && rt > (S.hiddenAt||0)){ S.hiddenFolders=new Set(data.hiddenFolders); S.hiddenAt=rt; await DB.setMeta("hiddenFolders", data.hiddenFolders); }
+  } finally { S._merging=false; }
   return n;
 }
 $("#impFile").addEventListener("change", async (e)=>{
@@ -1516,14 +1526,14 @@ $("#delOk").onclick=async ()=>{
     if (DEL.kind==="track"){
       const t=S.tracks.get(DEL.target);
       if (fromDrive){ const src=S.files.get(t.id); const r=await gauth(`${DAPI}/${src.drive}?supportsAllDrives=true`, {method:"PATCH", headers:{"Content-Type":"application/json"}, body:JSON.stringify({trashed:true})}); if(!r.ok) throw new Error("Диск не удалил файл ("+r.status+")"); }
-      t.hidden=true; await DB.put(t);
+      t.hidden=true; t.editedAt=Date.now(); await DB.put(t);
       if (S.playingId===t.id){ audio.pause(); }
       toast(fromDrive ? "Трек удалён и перемещён в корзину Google Диска" : "Трек удалён из библиотеки");
       if ($("#v-track").classList.contains("on")) show(lastTab);
     } else {
       const name=DEL.target;
       if (fromDrive){ const r=await gauth(`${DAPI}/${CLOUD.folders[name]}?supportsAllDrives=true`, {method:"PATCH", headers:{"Content-Type":"application/json"}, body:JSON.stringify({trashed:true})}); if(!r.ok) throw new Error("Диск не удалил папку ("+r.status+")"); }
-      S.hiddenFolders.add(name); await DB.setMeta("hiddenFolders", [...S.hiddenFolders]);
+      S.hiddenFolders.add(name); S.hiddenAt=Date.now(); await DB.setMeta("hiddenFolders", [...S.hiddenFolders]); scheduleSync();
       if (S.folder===name) S.folder="Все";
       toast(fromDrive ? `Папка «${name}» удалена и перемещена в корзину Диска` : `Папка «${name}» удалена из библиотеки`);
     }
@@ -1710,13 +1720,14 @@ async function loadCloud(){
     const out=[], dataFiles=[];
     await driveList(CLOUD.cfg.folderId, meta.name, out, dataFiles);
     for (const df of dataFiles){
-      try{ const r=await fetch(mediaUrl(df.id)); if (r.ok){ const n=await mergeData(await r.json()); if (n) toast("Подхватил готовый анализ: "+n+" треков"); } }catch(e){}
+      try{ if (/^dj-library-data\.json$/i.test(df.name)) SYNC.fileId=df.id; const r=await fetch(mediaUrl(df.id)+"&nc="+Date.now()); if (r.ok){ const n=await mergeData(await r.json(), true); if (n) toast("Синхронизировано с другим устройством: "+n+" треков"); } }catch(e){}
     }
     CLOUD.rootName=meta.name; CLOUD.index=new Set(out.map(e=>trackId(e.path,e.size)));
     S.rootName=meta.name; await DB.setMeta("rootName", meta.name);
     const rb=$("#reconnect"); if (rb) rb.remove();
     await ingest(out);
     setCloudState(`Папка «${meta.name}» · ${out.length} ${plural(out.length,"трек","трека","треков")}`, true);
+    renderUpload(); renderAll();
   }catch(e){
     console.warn(e);
     const msg = e.status===404 ? "Папка не найдена или не открыта «по ссылке»" : e.status===403 || e.status===400 ? "Ключ не подходит или Drive API не включён" : "Нет связи с Google Диском";
@@ -1736,7 +1747,7 @@ $("#cPhone").onclick=async ()=>{
   if (!CLOUD.cfg){ toast("Сначала подключи Google Диск"); return; }
   const code=btoa(unescape(encodeURIComponent(JSON.stringify({f:CLOUD.cfg.folderId,k:CLOUD.cfg.key}))));
   const url=location.origin+location.pathname+"?c="+encodeURIComponent(code);
-  try{ await navigator.clipboard.writeText(url); toast("Ссылка скопирована — открой её на телефоне или вставь в бота"); }
+  try{ await navigator.clipboard.writeText(url); toast("Ссылка скопирована. Отправь её себе в Telegram («Избранное») и открой на телефоне — всё подключится само"); }
   catch(e){ prompt("Скопируй ссылку:", url); }
 };
 /* ---------- upload to Google Drive (OAuth, works in Chrome/Safari on Mac) ---------- */
@@ -1748,15 +1759,15 @@ function loadGIS(){
     sc.onload=()=>res(); sc.onerror=()=>rej(new Error("Не загрузился вход Google")); document.head.appendChild(sc);
   });
 }
-function tokenValid(){ return UP.token && Date.now() < UP.exp-60000; }
+function tokenValid(){ return !!UP.token && Date.now() < UP.exp-60000; }
 async function getToken(){
   if (tokenValid()) return UP.token;
   const cid = CLOUD.cfg && CLOUD.cfg.clientId; if (!cid) throw new Error("Вставь OAuth Client ID");
   await loadGIS();
   return new Promise((res,rej)=>{
     const tc=google.accounts.oauth2.initTokenClient({ client_id:cid, scope:"https://www.googleapis.com/auth/drive",
-      callback:(r)=>{ if (r.error) return rej(new Error(r.error)); UP.token=r.access_token; UP.exp=Date.now()+(+r.expires_in||3600)*1000; renderUpload(); res(UP.token); },
-      error_callback:(e)=>rej(new Error(e && e.type==="popup_closed" ? "Окно входа закрыто" : "Вход не выполнен")) });
+      callback:(r)=>{ if (r.error){ UP.lastErr=r.error; return rej(new Error("Google: "+r.error)); } UP.token=r.access_token; UP.exp=Date.now()+(+r.expires_in||3600)*1000; renderUpload(); res(UP.token); },
+      error_callback:(e)=>{ const m = e && e.type==="popup_closed" ? "окно входа закрыто" : e && e.type==="popup_failed_to_open" ? "браузер заблокировал окно входа" : "вход не выполнен"; UP.lastErr=m; renderUpload(); rej(new Error(m)); } });
     tc.requestAccessToken();
   });
 }
@@ -1840,7 +1851,19 @@ async function runUpload(){
   UP.busy=false; UP.cur=""; renderUpload();
 }
 function renderUpload(){
-  const st=$("#cLoginState"); if (st) st.textContent = tokenValid() ? "Вход выполнен — можно загружать" : (CLOUD.cfg&&CLOUD.cfg.clientId ? "Нужно войти (вход действует около часа)" : "Не выполнен вход");
+  const st=$("#cLoginState");
+  if (st){
+    let txt, ok=false;
+    if (!CLOUD.cfg || !CLOUD.cfg.folderId) txt="Сначала подключи папку Диска (ссылка и ключ выше)";
+    else if (!CLOUD.cfg.clientId) txt="Загрузка и синхронизация выключены: не вставлен OAuth Client ID";
+    else if (!tokenValid()) txt="Нажми «Войти в Google» — включатся загрузка треков и синхронизация с телефоном";
+    else { ok=true; txt="✓ Вход выполнен: загрузка и синхронизация работают" + (SYNC.last ? " · синхронизировано в "+new Date(SYNC.last).toLocaleTimeString("ru",{hour:"2-digit",minute:"2-digit"}) : (SYNC.pending?" · синхронизирую…":"")); }
+    if (UP.lastErr) txt += " · ошибка: "+UP.lastErr;
+    st.textContent=txt; st.style.color = ok ? "var(--acc)" : "#FFB020"; st.style.fontSize="13px";
+  }
+  const banner=$("#syncBanner");
+  const need = CLOUD.cfg && CLOUD.cfg.clientId && CLOUD.cfg.folderId && !tokenValid() && (UP.pending.length || SYNC.pending);
+  if (banner) banner.style.display = need ? "flex" : "none";
   let box=$("#upBox"); if (!box){ box=document.createElement("div"); box.id="upBox"; box.style.cssText="display:flex;flex-direction:column;gap:10px"; $("#queueBox").after(box); }
   if (!UP.pending.length && !UP.busy){ box.innerHTML=""; return; }
   const left=UP.pending.length, pct=UP.total? Math.round((UP.done + UP.curPct)/UP.total*100) : 0;
@@ -1870,14 +1893,54 @@ $("#cLogin").onclick=async ()=>{
       CLOUD.cfg.folderId=id; CLOUD.cfg.link="https://drive.google.com/drive/folders/"+id; $("#cLink").value=CLOUD.cfg.link;
       await DB.setMeta("cloud", CLOUD.cfg); toast("Создал на Диске папку «DJ Music» с доступом по ссылке");
     }
+    UP.lastErr="";
     if (CLOUD.cfg.key) await loadCloud();
     if (!UP.pending.length && UP.lastLocal) maybeUpload(UP.lastLocal);
+    SYNC.pending=true; syncNow();
     runUpload();
   }catch(e){ toast(e.message); }
   renderUpload();
 };
 $("#cUpNow").onclick=()=>$("#cLogin").click();
+$("#syncLogin").onclick=()=>$("#cLogin").click();
 $("#cAuto").addEventListener("change", async ()=>{ if (CLOUD.cfg){ CLOUD.cfg.auto=$("#cAuto").checked; await DB.setMeta("cloud", CLOUD.cfg); } });
+
+const SYNC={timer:0, fileId:null, busy:false, last:0, pending:false};
+function buildData(){ return {app:"dj-library", version:2, exportedAt:new Date().toISOString(), root:S.rootName, hiddenFolders:[...S.hiddenFolders],
+  profile:{name:P.name, skin:P.skin, tone:P.tone, avatar:P.avatar, lastLevel:P.lastLevel},
+  tracks:[...S.tracks.values()].map(({cover,missing,...t})=>t)}; }
+function scheduleSync(){
+  if (S._merging || !CLOUD.cfg || !CLOUD.cfg.folderId || !CLOUD.cfg.clientId) return;
+  SYNC.pending=true; clearTimeout(SYNC.timer); SYNC.timer=setTimeout(syncNow, 6000); renderUpload();
+}
+async function syncNow(){
+  if (!SYNC.pending || SYNC.busy || !tokenValid() || !CLOUD.cfg || !CLOUD.cfg.folderId) { renderUpload(); return; }
+  SYNC.busy=true;
+  try{
+    if (!SYNC.fileId){
+      const q=`name='dj-library-data.json' and '${CLOUD.cfg.folderId}' in parents and trashed=false`;
+      const r=await gauth(DAPI+"?"+new URLSearchParams({q, fields:"files(id)", supportsAllDrives:"true", includeItemsFromAllDrives:"true"}));
+      const j=await r.json(); if (j.files && j.files.length) SYNC.fileId=j.files[0].id;
+    }
+    const body=JSON.stringify(buildData());
+    let r;
+    if (SYNC.fileId){
+      r=await gauth(`https://www.googleapis.com/upload/drive/v3/files/${SYNC.fileId}?uploadType=media&supportsAllDrives=true`, {method:"PATCH", headers:{"Content-Type":"application/json"}, body});
+    } else {
+      const b="djsync"+Date.now(), meta=JSON.stringify({name:"dj-library-data.json", parents:[CLOUD.cfg.folderId], mimeType:"application/json"});
+      r=await gauth("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&supportsAllDrives=true&fields=id", {method:"POST", headers:{"Content-Type":"multipart/related; boundary="+b},
+        body:`--${b}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n${meta}\r\n--${b}\r\nContent-Type: application/json\r\n\r\n${body}\r\n--${b}--`});
+      if (r.ok) SYNC.fileId=(await r.clone().json()).id;
+    }
+    if (!r.ok) throw new Error("Синхронизация не удалась ("+r.status+")");
+    SYNC.pending=false; SYNC.last=Date.now();
+  }catch(e){ UP.lastErr=e.message; }
+  SYNC.busy=false; renderUpload();
+}
+(function wrapDb(){ const put=DB.put.bind(DB), setMeta=DB.setMeta.bind(DB);
+  DB.put=async (t)=>{ await put(t); scheduleSync(); };
+  DB.setMeta=async (k,v)=>{ await setMeta(k,v); if (k==="profile"||k==="hiddenFolders") scheduleSync(); };
+})();
 
 function cloudFromUrl(){
   try{
@@ -1887,7 +1950,7 @@ function cloudFromUrl(){
   }catch(e){ return null; }
 }
 
-const APP_VER = "2026-11-16 · 14";
+const APP_VER = "2026-11-16 · 15";
 (async function checkUpdate(){
   try{
     if (location.protocol!=="https:") return;
