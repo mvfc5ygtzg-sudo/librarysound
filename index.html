@@ -305,6 +305,13 @@ nav.tabs button.on{color:var(--acc);font-weight:600}
         <span style="font-size:13px;color:var(--muted)">Подпапки станут папками в приложении · или перетащи сюда файлы и папки</span>
       </button>
       <input type="file" id="dirInput" webkitdirectory multiple style="display:none">
+      <div class="pcard" id="tgCard" style="gap:10px;display:none;border-color:#2b5f86">
+        <div class="row between"><b style="font-size:16px">Треки из чата бота</b><span class="badge" id="tgCount" style="color:#7cc7ff;background:rgba(80,160,255,.16)">0</span></div>
+        <span class="dim" style="font-size:13px;line-height:1.5">Отправь аудиофайлы прямо в чат с ботом — они появятся здесь. Подпись к файлу = папка (например «House»). Или напиши боту /folder House.</span>
+        <div class="row" style="gap:10px;flex-wrap:wrap"><button class="big" id="tgChat" style="height:46px">Открыть чат с ботом</button><button class="ghost" id="tgRefresh" style="height:46px">Обновить</button></div>
+        <div id="tgSrvRow" style="display:none;flex-direction:column;gap:8px"><label class="dim" style="font-size:13px" for="tgSrv">Адрес сервера бота (…workers.dev)</label><input id="tgSrv" class="nameinp" style="font-size:14px;font-family:var(--mono);font-weight:500" placeholder="https://dj-library.имя.workers.dev"><button class="smallbtn acc" id="tgSrvSave" style="align-self:flex-start">Сохранить</button></div>
+        <span class="dim" style="font-size:12px" id="tgState"></span>
+      </div>
       <div class="pcard" style="gap:10px">
         <b style="font-size:15px">Добавить отдельные треки</b>
         <div class="row" style="gap:10px;flex-wrap:wrap">
@@ -351,7 +358,7 @@ nav.tabs button.on{color:var(--acc);font-weight:600}
         <button class="ghost" id="freeBtn">Очистить память</button>
         <input type="file" id="impFile" accept=".json,application/json" style="display:none">
       </div>
-      <span class="dim" style="font-size:12px">Версия приложения: <b id="appVer">2026-11-16 · 17</b></span>
+      <span class="dim" style="font-size:12px">Версия приложения: <b id="appVer">2026-11-16 · 18</b></span>
       <span class="dim" style="font-size:13px;line-height:1.5">«Данные библиотеки» — это BPM, тональности и твои исправления. Сами треки в этот файл не входят. Сохрани его рядом с музыкой в облаке.</span>
     </div>
   </section>
@@ -842,6 +849,7 @@ async function analyzeFile(file){
    ===================================================================== */
 async function getFile(id){
   const f=S.files.get(id); if(!f) return null;
+  if (f.tg){ const r=await fetch(tgUrl(f.tg)); if(!r.ok){ let m=""; try{ m=(await r.json()).error; }catch(e){} throw new Error(m||("Бот: "+r.status)); } const b=await r.blob(); return new File([b], f.name, {type:b.type||"audio/mpeg"}); }
   if (f.drive){ const r=await fetch(mediaUrl(f.drive)); if(!r.ok) throw new Error("Google Диск: "+r.status); const b=await r.blob(); return new File([b], f.name, {type:b.type||"audio/mpeg"}); }
   return f.getFile ? await f.getFile() : f;
 }
@@ -851,7 +859,8 @@ async function ingest(entries, opts={}){ // entries: [{path, file|handle|drive, 
   for (const e of entries){ try{
     const id = trackId(e.path, e.size);
     const cur = S.files.get(id);
-    if (!(e.drive && cur && !cur.drive)) S.files.set(id, e.handle || e.file || {drive:e.drive, name:e.path.split("/").pop()});
+    const remote = !!(e.drive || e.tg), curLocal = cur && !cur.drive && !cur.tg;
+    if (!(remote && curLocal)) S.files.set(id, e.handle || e.file || (e.tg ? {tg:e.tg, name:e.path.split("/").pop()} : {drive:e.drive, name:e.path.split("/").pop()}));
     let t = S.tracks.get(id);
     const parts = e.path.split("/"); const fname=parts[parts.length-1];
     const folder = parts.length>2 ? parts[1] : "Без папки";
@@ -1060,7 +1069,8 @@ async function playTrack(id){
   const src=S.files.get(id);
   if (!src){ toast("Файл недоступен — открой папку или подключи Google Диск во вкладке «Добавить»"); return; }
   if (objUrl){ URL.revokeObjectURL(objUrl); objUrl=null; }
-  if (src.drive){ audio.src=mediaUrl(src.drive)+"#t=0"; }
+  if (src.tg){ audio.src=tgUrl(src.tg)+"#t=0"; }
+  else if (src.drive){ audio.src=mediaUrl(src.drive)+"#t=0"; }
   else { const f=await getFile(id); objUrl=URL.createObjectURL(f); audio.src=objUrl+"#t=0"; }
   S._startGuard=performance.now();
   audio.addEventListener("loadedmetadata", ()=>{ try{ audio.currentTime=0; }catch(e){} }, {once:true});
@@ -1548,6 +1558,7 @@ $("#delOk").onclick=async ()=>{
     if (DEL.kind==="track"){
       const t=S.tracks.get(DEL.target);
       if (fromDrive){ const src=S.files.get(t.id); const r=await gauth(`${DAPI}/${src.drive}?supportsAllDrives=true`, {method:"PATCH", headers:{"Content-Type":"application/json"}, body:JSON.stringify({trashed:true})}); if(!r.ok) throw new Error("Диск не удалил файл ("+r.status+")"); }
+      const srcT=S.files.get(t.id); if (srcT && srcT.tg){ try{ await fetch(`${TGS.server}/api/track/${srcT.tg}?auth=${encodeURIComponent(TGS.initData)}`, {method:"DELETE"}); }catch(e){} }
       t.hidden=true; t.editedAt=Date.now(); await DB.put(t);
       if (S.playingId===t.id){ audio.pause(); }
       toast(fromDrive ? "Трек удалён и перемещён в корзину Google Диска" : "Трек удалён из библиотеки");
@@ -1964,6 +1975,43 @@ async function syncNow(){
   DB.setMeta=async (k,v)=>{ await setMeta(k,v); if (k==="profile"||k==="hiddenFolders") scheduleSync(); };
 })();
 
+/* ---------- Telegram bot as track storage ---------- */
+const DEFAULT_TG_SERVER = "";
+const TGS={server:"", initData:""};
+const tgUrl=(id)=>`${TGS.server}/api/file/${encodeURIComponent(id)}?auth=${encodeURIComponent(TGS.initData)}`;
+function tgWebApp(){ try{ return window.Telegram && Telegram.WebApp && Telegram.WebApp.initData ? Telegram.WebApp : null; }catch(e){ return null; } }
+async function waitTelegram(ms=3000){ const t0=Date.now(); while (Date.now()-t0<ms){ if (tgWebApp()) return tgWebApp(); await new Promise(r=>setTimeout(r,100)); } return tgWebApp(); }
+async function loadTelegram(){
+  if (!TGS.server || !TGS.initData) return;
+  $("#tgState").textContent="Загружаю список из бота…";
+  try{
+    const r=await fetch(`${TGS.server}/api/tracks?auth=${encodeURIComponent(TGS.initData)}`); const j=await r.json();
+    if (!r.ok) throw new Error(j.error||("HTTP "+r.status));
+    const ents=j.tracks.map(t=>({path: t.folder ? `Telegram/${t.folder}/${t.name}` : `Telegram/${t.name}`, tg:t.id, size:t.size, mtime:(t.date||0)*1000, meta:t}));
+    await ingest(ents);
+    for (const e of ents){ const id=trackId(e.path,e.size), t=S.tracks.get(id), src=S.files.get(id); if(!t) continue;
+      if (e.meta.performer && !t.artistFromTag){ t.artist=e.meta.performer; } if (e.meta.title && !t.analyzed){ t.title=e.meta.title; }
+      if (!e.meta.playable && src && src.tg){ t.failed=true; t.err="больше 20 МБ"; t.big=true; } await DB.put(t); }
+    $("#tgCount").textContent=ents.length; $("#tgState").textContent = ents.length ? `В боте ${ents.length} ${plural(ents.length,"трек","трека","треков")}` + (ents.some(e=>!e.meta.playable)?" · файлы больше 20 МБ Telegram не отдаёт приложению":"") : "Пока пусто — отправь боту первый трек";
+    renderAll();
+  }catch(e){ $("#tgState").textContent="Не получилось загрузить: "+e.message; }
+}
+async function initTelegramSource(){
+  const w=await waitTelegram(); if (!w) return;
+  TGS.initData=w.initData;
+  try{ w.disableVerticalSwipes && w.disableVerticalSwipes(); }catch(e){}
+  TGS.server = (new URLSearchParams(location.search).get("srv")) || (await DB.getMeta("tgServer")) || DEFAULT_TG_SERVER;
+  if (new URLSearchParams(location.search).get("srv")) await DB.setMeta("tgServer", TGS.server);
+  $("#tgCard").style.display="flex";
+  $("#tgSrvRow").style.display = TGS.server ? "none" : "flex";
+  if (!TGS.server){ $("#tgState").textContent="Сервер бота ещё не подключён."; return; }
+  await loadTelegram();
+  document.addEventListener("visibilitychange", ()=>{ if (document.visibilityState==="visible") loadTelegram(); });
+}
+$("#tgRefresh").onclick=()=>loadTelegram();
+$("#tgChat").onclick=()=>{ try{ Telegram.WebApp.close(); }catch(e){} };
+$("#tgSrvSave").onclick=async ()=>{ const v=$("#tgSrv").value.trim().replace(/\/+$/,""); if(!/^https:\/\//.test(v)){ toast("Адрес должен начинаться с https://"); return; } TGS.server=v; await DB.setMeta("tgServer", v); $("#tgSrvRow").style.display="none"; loadTelegram(); };
+
 function cloudFromUrl(){
   try{
     const sp=new URLSearchParams(location.search); const c=sp.get("c"); if(!c) return null;
@@ -1972,7 +2020,7 @@ function cloudFromUrl(){
   }catch(e){ return null; }
 }
 
-const APP_VER = "2026-11-16 · 17";
+const APP_VER = "2026-11-16 · 18";
 (async function checkUpdate(){
   try{
     if (location.protocol!=="https:") return;
@@ -1998,6 +2046,7 @@ async function freeSpace(){
   }catch(e){ console.warn(e); }
   S.rootName = (await DB.getMeta("rootName").catch(()=>null)) || "";
   const hf = await DB.getMeta("hiddenFolders"); if (Array.isArray(hf)) S.hiddenFolders=new Set(hf);
+  initTelegramSource();
   const pr = await DB.getMeta("profile"); if (pr) Object.assign(P, pr); else P.lastLevel = levelOf(stats().xp);
   // Google Drive config: from a "phone link" (?c=...) or saved earlier
   const fromUrl = cloudFromUrl();
