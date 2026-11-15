@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>DJ-библиотека</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -25,7 +25,19 @@ button{cursor:pointer}
 a{color:var(--acc)}
 .app{max-width:760px;margin:0 auto;min-height:100vh;display:flex;flex-direction:column;position:relative}
 .view{flex:1;display:none;flex-direction:column;padding-bottom:170px}
-.view.on{display:flex}
+.view.on{display:flex;animation:viewIn .28s cubic-bezier(.2,.8,.2,1)}
+@keyframes viewIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+html,body{touch-action:manipulation;-webkit-tap-highlight-color:transparent;overscroll-behavior-y:none}
+button,.trk,.chip,.fcard,.pill,.sbtn,.skin{transition:transform .12s ease, background-color .2s ease, border-color .2s ease, opacity .2s ease}
+button:active,.trk:active,.fcard:active,.chip:active{transform:scale(.97)}
+.list.fresh .trk{animation:rowIn .35s ease both}
+@keyframes rowIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.sheet.on .box{animation:sheetUp .28s cubic-bezier(.2,.8,.2,1)}
+@keyframes sheetUp{from{transform:translateY(40px);opacity:.4}to{transform:none;opacity:1}}
+.mini.on{animation:viewIn .3s ease}
+.toast.on{animation:toastIn .25s ease}
+@keyframes toastIn{from{opacity:0;transform:translate(-50%,-8px)}to{opacity:1;transform:translate(-50%,0)}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 .top{padding:28px 20px 12px;display:flex;flex-direction:column;gap:16px}
 .row{display:flex;align-items:center;gap:8px}
 .between{justify-content:space-between}
@@ -339,7 +351,7 @@ nav.tabs button.on{color:var(--acc);font-weight:600}
         <button class="ghost" id="freeBtn">Очистить память</button>
         <input type="file" id="impFile" accept=".json,application/json" style="display:none">
       </div>
-      <span class="dim" style="font-size:12px">Версия приложения: <b id="appVer">2026-11-16 · 16</b></span>
+      <span class="dim" style="font-size:12px">Версия приложения: <b id="appVer">2026-11-16 · 17</b></span>
       <span class="dim" style="font-size:13px;line-height:1.5">«Данные библиотеки» — это BPM, тональности и твои исправления. Сами треки в этот файл не входят. Сохрани его рядом с музыкой в облаке.</span>
     </div>
   </section>
@@ -835,7 +847,7 @@ async function getFile(id){
 }
 function isAudio(name){ const e=name.split(".").pop().toLowerCase(); return AUDIO_EXT.includes(e) && !name.startsWith("._"); }
 const trackId = (path, size) => path.split("/").pop() + "|" + size;   // same file = same id, wherever it lives (Mac, Google Drive)
-async function ingest(entries){ // entries: [{path, file|handle|drive, size, mtime}]
+async function ingest(entries, opts={}){ // entries: [{path, file|handle|drive, size, mtime}]
   for (const e of entries){ try{
     const id = trackId(e.path, e.size);
     const cur = S.files.get(id);
@@ -848,6 +860,7 @@ async function ingest(entries){ // entries: [{path, file|handle|drive, size, mti
       t = {id, path:e.path, fname, folder, sub: parts.slice(1,-1).join(" / "), size:e.size, mtime:e.mtime, addedAt:Date.now(), title:nm.title, artist:nm.artist, analyzed:false};
       S.tracks.set(id,t); await DB.put(t);
     } else if (t.folder!==folder){ t.folder=folder; t.path=e.path; await DB.put(t); }
+    if (opts.explicit){ if (t.hidden){ t.hidden=false; t.editedAt=Date.now(); await DB.put(t); } if (S.hiddenFolders.has(t.folder)){ S.hiddenFolders.delete(t.folder); S.hiddenAt=Date.now(); await DB.setMeta("hiddenFolders",[...S.hiddenFolders]); } if (t.failed){ t.failed=false; } }
     if ((!t.analyzed || (t.av||1)<2) && !t.failed) S.queue.push(id);
   }catch(err){ console.warn("ingest", e.path, err); } }
   for (const [id,t] of S.tracks) t.missing = !S.files.has(id);
@@ -1365,6 +1378,7 @@ $("#tReveal").onclick=()=>{ const p=$("#tPath"); p.style.display = p.style.displ
    ===================================================================== */
 let lastTab="lib";
 function show(view){
+  if (view==="lib"){ const L=$("#list"); L.classList.remove("fresh"); void L.offsetWidth; L.classList.add("fresh"); setTimeout(()=>L.classList.remove("fresh"),600); }
   document.querySelectorAll(".view").forEach(v=>v.classList.remove("on"));
   $("#v-"+view).classList.add("on");
   document.querySelectorAll("nav.tabs button").forEach(b=>b.classList.toggle("on", b.dataset.tab===(view==="track"?lastTab:view)));
@@ -1412,8 +1426,10 @@ async function addSingles(items, folder){ // items: [{h|f, file}]
   // remember Chrome file handles so the tracks come back after reopening
   const hs=items.filter(it=>it.h);
   if (hs.length){ const prev=(await DB.getMeta("singles"))||[]; const key=(x)=>x.folder+"|"+x.name; const map=new Map(prev.map(x=>[key(x),x])); for (const it of hs) map.set((folder||"")+"|"+it.file.name, {handle:it.h, folder:folder||"", name:it.file.name}); await DB.setMeta("singles", [...map.values()]); }
-  await ingest(ents);
-  toast(ents.length===1 ? "Трек добавлен" : `Добавлено треков: ${ents.length}`);
+  await ingest(ents, {explicit:true});
+  toast(ents.length===1 ? "Трек добавлен — смотри во вкладке «Треки»" : `Добавлено треков: ${ents.length}`);
+  S.folder="Все"; S.q=""; $("#q").value=""; S.bpmMin=S.bpmMax=null; S.keyF=null; S.sort="new"; $("#sortSel").value="new";
+  setTimeout(()=>{ lastTab="lib"; renderAll(); show("lib"); }, 600);
   maybeUpload(ents);
   if ($("#singleFolder").value==="__new"){ $("#singleNew").value=""; } renderSingleFolders();
   if (folder) $("#singleFolder").value=folder;
@@ -1956,7 +1972,7 @@ function cloudFromUrl(){
   }catch(e){ return null; }
 }
 
-const APP_VER = "2026-11-16 · 16";
+const APP_VER = "2026-11-16 · 17";
 (async function checkUpdate(){
   try{
     if (location.protocol!=="https:") return;
