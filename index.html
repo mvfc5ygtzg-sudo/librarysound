@@ -79,6 +79,7 @@ nav.tabs button.on{color:var(--acc);font-weight:600}
 .note b{font-size:14px;font-weight:600}
 .note span{font-size:13px;color:var(--muted)}
 .pane{padding:0 16px;display:flex;flex-direction:column;gap:14px}
+.drop.over{border-color:var(--acc);background:#1A2108}
 .drop{height:160px;border-radius:24px;border:2px dashed var(--acc-line);background:#12160A;color:var(--text);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;width:100%}
 .qitem{padding:12px 14px;border-radius:16px;background:var(--card);border:1px solid var(--line);display:flex;flex-direction:column;gap:8px}
 .badge{font-family:var(--mono);font-size:12px;font-weight:700;padding:3px 8px;border-radius:8px;white-space:nowrap}
@@ -288,9 +289,20 @@ nav.tabs button.on{color:var(--acc);font-weight:600}
       <button class="drop" id="pickBtn">
         <span style="width:52px;height:52px;border-radius:26px;background:var(--acc);display:flex;align-items:center;justify-content:center"><svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#0B0C0F" stroke-width="2.6" stroke-linecap="round"><path d="M12 19V6m-6 6 6-6 6 6"/></svg></span>
         <span style="font-size:16px;font-weight:700" id="pickLabel">Выбрать папку с музыкой</span>
-        <span style="font-size:13px;color:var(--muted)">Подпапки станут папками в приложении</span>
+        <span style="font-size:13px;color:var(--muted)">Подпапки станут папками в приложении · или перетащи сюда файлы и папки</span>
       </button>
       <input type="file" id="dirInput" webkitdirectory multiple style="display:none">
+      <div class="pcard" style="gap:10px">
+        <b style="font-size:15px">Добавить отдельные треки</b>
+        <div class="row" style="gap:10px;flex-wrap:wrap">
+          <label class="dim" style="font-size:13px" for="singleFolder">В папку:</label>
+          <select id="singleFolder" class="pill" style="min-width:150px;height:40px"></select>
+          <input id="singleNew" class="nameinp" style="display:none;height:40px;font-size:14px;flex:1;min-width:140px" placeholder="Название новой папки" maxlength="40">
+        </div>
+        <button class="big" id="pickFiles" style="height:48px">+ Выбрать треки</button>
+        <input type="file" id="fileInput" multiple accept="audio/*,.mp3,.wav,.aif,.aiff,.flac,.m4a,.aac,.ogg" style="display:none">
+        <span class="dim" style="font-size:12px">Можно выбрать один трек или сразу несколько.</span>
+      </div>
       <div id="queueBox" style="display:flex;flex-direction:column;gap:10px"></div>
       <span class="eyebrow" style="margin-top:8px">Google Диск</span>
       <div class="pcard" style="gap:10px">
@@ -325,7 +337,7 @@ nav.tabs button.on{color:var(--acc);font-weight:600}
         <button class="ghost" id="expCsv">Таблица (CSV)</button>
         <input type="file" id="impFile" accept=".json,application/json" style="display:none">
       </div>
-      <span class="dim" style="font-size:12px">Версия приложения: <b id="appVer">2026-11-16 · 13</b></span>
+      <span class="dim" style="font-size:12px">Версия приложения: <b id="appVer">2026-11-16 · 14</b></span>
       <span class="dim" style="font-size:13px;line-height:1.5">«Данные библиотеки» — это BPM, тональности и твои исправления. Сами треки в этот файл не входят. Сохрани его рядом с музыкой в облаке.</span>
     </div>
   </section>
@@ -1021,7 +1033,7 @@ function renderTrack(){
   $("#eBpm").value = b ?? ""; $("#eKey").value = k || "";
   updatePlayButtons(); updateWave();
 }
-function renderAll(){ renderChips(); renderPills(); renderList(); renderFolders(); renderQueue(); renderProfile(); }
+function renderAll(){ renderChips(); renderPills(); renderList(); renderFolders(); renderQueue(); renderProfile(); try{ renderSingleFolders(); }catch(e){} }
 
 /* =====================================================================
    Player
@@ -1373,6 +1385,81 @@ $("#kClear").onclick=()=>{ S.keyF=null; $("#keySheet").classList.remove("on"); r
 document.querySelectorAll(".sheet").forEach(s=>s.addEventListener("click",(e)=>{ if(e.target===s) s.classList.remove("on"); }));
 $("#clearPill").onclick=()=>{ S.bpmMin=S.bpmMax=null; S.keyF=null; S.q=""; $("#q").value=""; renderPills(); renderList(); };
 $("#pickBtn").onclick=()=>pickFolder();
+/* ---------- single tracks ---------- */
+const SINGLE_ROOT="Мои треки";
+function renderSingleFolders(){
+  const sel=$("#singleFolder"); if(!sel) return; const cur=sel.value;
+  const folders=[...new Set([...S.tracks.values()].filter(isLive).map(t=>t.folder))].filter(f=>f!=="Без папки").sort((a,b)=>a.localeCompare(b,"ru"));
+  sel.innerHTML=`<option value="">Без папки</option>`+folders.map(f=>`<option value="${esc(f)}">${esc(f)}</option>`).join("")+`<option value="__new">+ Новая папка…</option>`;
+  if ([...sel.options].some(o=>o.value===cur)) sel.value=cur;
+  $("#singleNew").style.display = sel.value==="__new" ? "" : "none";
+}
+$("#singleFolder").addEventListener("change", ()=>{ $("#singleNew").style.display = $("#singleFolder").value==="__new" ? "" : "none"; if ($("#singleFolder").value==="__new") $("#singleNew").focus(); });
+function targetFolder(){ const v=$("#singleFolder").value; if (v==="__new"){ const n=$("#singleNew").value.trim().replace(/[\/\\]/g,"-"); return n||"Новая папка"; } return v; }
+function singleEntry(fileOrHandle, file, folder){
+  const path = folder ? `${SINGLE_ROOT}/${folder}/${file.name}` : `${SINGLE_ROOT}/${file.name}`;
+  return {path, size:file.size, mtime:file.lastModified, ...(fileOrHandle.getFile?{handle:fileOrHandle}:{file:fileOrHandle}), dirs: folder?[folder]:[]};
+}
+async function addSingles(items, folder){ // items: [{h|f, file}]
+  const ents=items.map(it=>singleEntry(it.h||it.file, it.file, folder));
+  if (!ents.length) return;
+  // remember Chrome file handles so the tracks come back after reopening
+  const hs=items.filter(it=>it.h);
+  if (hs.length){ const prev=(await DB.getMeta("singles"))||[]; const key=(x)=>x.folder+"|"+x.name; const map=new Map(prev.map(x=>[key(x),x])); for (const it of hs) map.set((folder||"")+"|"+it.file.name, {handle:it.h, folder:folder||"", name:it.file.name}); await DB.setMeta("singles", [...map.values()]); }
+  await ingest(ents);
+  toast(ents.length===1 ? "Трек добавлен" : `Добавлено треков: ${ents.length}`);
+  maybeUpload(ents);
+  if ($("#singleFolder").value==="__new"){ $("#singleNew").value=""; } renderSingleFolders();
+  if (folder) $("#singleFolder").value=folder;
+}
+$("#pickFiles").onclick=async ()=>{
+  const folder=targetFolder();
+  if (window.showOpenFilePicker){
+    try{
+      const hs=await window.showOpenFilePicker({multiple:true, id:"djtracks", types:[{description:"Аудио", accept:{"audio/*":[".mp3",".wav",".aif",".aiff",".flac",".m4a",".aac",".ogg"]}}]});
+      const items=[]; for (const h of hs){ const f=await h.getFile(); if (isAudio(f.name)) items.push({h, file:f}); }
+      await addSingles(items, folder); return;
+    }catch(e){ if (e.name==="AbortError") return; }
+  }
+  $("#fileInput").dataset.folder=folder; $("#fileInput").click();
+};
+$("#fileInput").addEventListener("change", async (e)=>{
+  const files=[...e.target.files].filter(f=>isAudio(f.name));
+  await addSingles(files.map(f=>({file:f})), e.target.dataset.folder||"");
+  e.target.value="";
+});
+async function loadSingles(ask){
+  const list=(await DB.getMeta("singles"))||[]; if (!list.length) return;
+  const byFolder={};
+  for (const x of list){
+    try{
+      let p=await x.handle.queryPermission({mode:"read"});
+      if (p!=="granted" && ask) p=await x.handle.requestPermission({mode:"read"});
+      if (p!=="granted") continue;
+      const f=await x.handle.getFile(); (byFolder[x.folder] ||= []).push(singleEntry(x.handle, f, x.folder));
+    }catch(e){}
+  }
+  for (const k in byFolder) await ingest(byFolder[k]);
+}
+/* ---------- drag & drop files and folders onto the Add tab ---------- */
+async function readEntry(entry, prefix, out){
+  if (entry.isFile){ const f=await new Promise((res,rej)=>entry.file(res,rej)); if (isAudio(f.name)) out.push({path:prefix+"/"+f.name, file:f, size:f.size, mtime:f.lastModified}); return; }
+  if (entry.isDirectory){ const rd=entry.createReader(); for(;;){ const batch=await new Promise((res,rej)=>rd.readEntries(res,rej)); if(!batch.length) break; for (const ch of batch) await readEntry(ch, prefix+"/"+entry.name, out); } }
+}
+(function(){
+  const z=$("#pickBtn");
+  ["dragenter","dragover"].forEach(ev=>z.addEventListener(ev,(e)=>{ e.preventDefault(); z.classList.add("over"); }));
+  ["dragleave","drop"].forEach(ev=>z.addEventListener(ev,()=>z.classList.remove("over")));
+  document.addEventListener("dragover",(e)=>e.preventDefault());
+  document.addEventListener("drop", async (e)=>{
+    e.preventDefault(); const items=[...(e.dataTransfer && e.dataTransfer.items || [])];
+    const folders=[], singles=[];
+    for (const it of items){ const en=it.webkitGetAsEntry && it.webkitGetAsEntry(); if (!en) continue; if (en.isDirectory) folders.push(en); else { const f=it.getAsFile(); if (f && isAudio(f.name)) singles.push({file:f}); } }
+    for (const d of folders){ const out=[]; await readEntry(d, "", out); const ents=out.map(o=>({...o, path:o.path.replace(/^\//,"")})); if (ents.length){ await ingest(ents); toast(`Папка «${d.name}»: ${ents.length} ${plural(ents.length,"трек","трека","треков")}`); maybeUpload(ents); } }
+    if (singles.length) await addSingles(singles, targetFolder());
+    if (!folders.length && !singles.length) toast("Перетащи аудиофайлы или папки с треками");
+  });
+})();
 // edit BPM/key (stored in the app only — audio files are never modified)
 $("#editBtn").onclick=()=>$("#editRow").classList.toggle("on");
 $("#eHalf").onclick=()=>{ const v=parseFloat($("#eBpm").value); if(v) $("#eBpm").value=Math.round(v/2*10)/10; };
@@ -1566,6 +1653,7 @@ $("#djName").addEventListener("input", (e)=>{ P.name=e.target.value.trim(); clea
    Start
    ===================================================================== */
 async function resumeOrPick(){
+  loadSingles(true);
   const dir = await DB.getMeta("dir");
   if (dir && dir.queryPermission){
     try{
@@ -1720,8 +1808,8 @@ function maybeUpload(entries){
   const idx=CLOUD.index||new Set();
   const todo=local.filter(e=>!idx.has(trackId(e.path,e.size)));
   if (!todo.length) return;
-  const rp=relParts(local);
-  for (const e of todo) UP.pending.push({e, dirs:rp(e)});
+  const rp=relParts(local.filter(e=>!e.dirs));
+  for (const e of todo) UP.pending.push({e, dirs: e.dirs || rp(e)});
   renderUpload();
   if (tokenValid()) runUpload();
 }
@@ -1799,7 +1887,7 @@ function cloudFromUrl(){
   }catch(e){ return null; }
 }
 
-const APP_VER = "2026-11-16 · 13";
+const APP_VER = "2026-11-16 · 14";
 (async function checkUpdate(){
   try{
     if (location.protocol!=="https:") return;
@@ -1825,7 +1913,7 @@ const APP_VER = "2026-11-16 · 13";
   else { const c=await DB.getMeta("cloud"); if (c && (c.folderId || c.clientId)) CLOUD.cfg=c; }
   if (CLOUD.cfg){ $("#cLink").value=CLOUD.cfg.link||""; $("#cKey").value=CLOUD.cfg.key||""; $("#cClient").value=CLOUD.cfg.clientId||""; if (CLOUD.cfg.auto===false) $("#cAuto").checked=false; }
   renderAll(); renderUpload();
-  if (CLOUD.cfg && CLOUD.cfg.folderId && CLOUD.cfg.key){ for (const t of S.tracks.values()) t.missing=false; renderAll(); loadCloud(); return; }
+  if (CLOUD.cfg && CLOUD.cfg.folderId && CLOUD.cfg.key){ for (const t of S.tracks.values()) t.missing=false; renderAll(); await loadCloud(); loadSingles(false); return; }
   // tracks from previous sessions are visible as "missing" until the folder is opened again
   const known=[...S.tracks.values()];
   if (known.length){
@@ -1834,6 +1922,7 @@ const APP_VER = "2026-11-16 · 13";
     const dir = await DB.getMeta("dir");
     if (dir && dir.queryPermission && (await dir.queryPermission({mode:"read"}).catch(()=>"denied"))==="granted"){ await loadFromHandle(dir); }
     else showReconnect();
+    await loadSingles(false);
   }
 })();
 function showReconnect(){
