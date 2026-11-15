@@ -358,7 +358,7 @@ nav.tabs button.on{color:var(--acc);font-weight:600}
         <button class="ghost" id="freeBtn">Очистить память</button>
         <input type="file" id="impFile" accept=".json,application/json" style="display:none">
       </div>
-      <span class="dim" style="font-size:12px">Версия приложения: <b id="appVer">2026-11-16 · 18</b></span>
+      <span class="dim" style="font-size:12px">Версия приложения: <b id="appVer">2026-11-16 · 19</b></span>
       <span class="dim" style="font-size:13px;line-height:1.5">«Данные библиотеки» — это BPM, тональности и твои исправления. Сами треки в этот файл не входят. Сохрани его рядом с музыкой в облаке.</span>
     </div>
   </section>
@@ -1976,7 +1976,7 @@ async function syncNow(){
 })();
 
 /* ---------- Telegram bot as track storage ---------- */
-const DEFAULT_TG_SERVER = "";
+const DEFAULT_TG_SERVER = "https://dj-library.denissruklin.workers.dev";
 const TGS={server:"", initData:""};
 const tgUrl=(id)=>`${TGS.server}/api/file/${encodeURIComponent(id)}?auth=${encodeURIComponent(TGS.initData)}`;
 function tgWebApp(){ try{ return window.Telegram && Telegram.WebApp && Telegram.WebApp.initData ? Telegram.WebApp : null; }catch(e){ return null; } }
@@ -2020,7 +2020,7 @@ function cloudFromUrl(){
   }catch(e){ return null; }
 }
 
-const APP_VER = "2026-11-16 · 18";
+const APP_VER = "2026-11-16 · 19";
 (async function checkUpdate(){
   try{
     if (location.protocol!=="https:") return;
