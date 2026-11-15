@@ -91,7 +91,7 @@ nav.tabs button.on{color:var(--acc);font-weight:600}
 .wbox{display:flex;flex-direction:column;gap:8px;padding:12px;border-radius:20px;background:#08090B;border:1px solid var(--line)}
 .wdwrap{position:relative}
 .wdetail{width:100%;height:150px;display:block;border-radius:12px;background:#050608;cursor:pointer;touch-action:none}
-.wover{width:100%;height:44px;display:block;border-radius:8px;background:#050608;cursor:pointer}
+.wover{width:100%;height:52px;display:block;border-radius:8px;background:#050608;cursor:pointer}
 .wmsg{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:13px;pointer-events:none}
 .legend{display:flex;gap:10px;flex-wrap:wrap;font-size:11px;color:var(--muted)}
 .legend i{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:5px;vertical-align:0}
@@ -214,7 +214,7 @@ nav.tabs button.on{color:var(--acc);font-weight:600}
       </div>
       <div class="wbox">
         <div class="row between">
-          <div class="legend"><span><i style="background:#FF2D45"></i>бочка · бас</span><span><i style="background:#3DFF7A"></i>вокал · середина</span><span><i style="background:#D6ECFF"></i>верха</span></div>
+          <div class="legend"><span><i style="background:#FF1F3D"></i>бочка · бас</span><span><i style="background:#22FF66"></i>вокал · середина</span><span><i style="background:#FFFFFF"></i>верха</span></div>
           <div class="row" style="gap:6px"><button class="zbtn" id="zOut" aria-label="Отдалить">−</button><button class="zbtn" id="zIn" aria-label="Приблизить">+</button></div>
         </div>
         <div class="wdwrap"><canvas id="tDetail" class="wdetail" aria-label="Волна трека с сеткой, нажми для перемотки"></canvas><div class="wmsg" id="tDetailMsg"></div></div>
@@ -297,7 +297,7 @@ nav.tabs button.on{color:var(--acc);font-weight:600}
         <button class="ghost" id="expCsv">Таблица (CSV)</button>
         <input type="file" id="impFile" accept=".json,application/json" style="display:none">
       </div>
-      <span class="dim" style="font-size:12px">Версия приложения: <b id="appVer">2026-11-16 · 8</b></span>
+      <span class="dim" style="font-size:12px">Версия приложения: <b id="appVer">2026-11-16 · 9</b></span>
       <span class="dim" style="font-size:13px;line-height:1.5">«Данные библиотеки» — это BPM, тональности и твои исправления. Сами треки в этот файл не входят. Сохрани его рядом с музыкой в облаке.</span>
     </div>
   </section>
@@ -993,6 +993,7 @@ async function playTrack(id){
   if (src.drive){ audio.src=mediaUrl(src.drive); }
   else { const f=await getFile(id); objUrl=URL.createObjectURL(f); audio.src=objUrl; }
   S.playingId=id;
+  try{ audio.currentTime=0; }catch(e){}
   try{ await audio.play(); }catch(e){ toast("Браузер не может проиграть этот формат"); }
   const t=S.tracks.get(id);
   $("#mini").classList.add("on");
@@ -1031,10 +1032,10 @@ function curTime(t){
 }
 /* rekordbox-style layered waveform: lows (red) outside, mids (green) inside, highs (white-blue) core.
    Pre-rendered once into tiles, then only shifted while playing -> smooth, no flicker. */
-const WCOL={lo:"#FF2D45", mi:"#3DFF7A", hi:"#D6ECFF"};
+const WCOL={lo:"#FF1F3D", mi:"#22FF66", hi:"#FFFFFF"};
 const WTILE=2048, WTH=240;
 const _wcache=new Map();
-function boost(v){ return Math.pow(v/255, 0.75); }
+function boost(v){ return Math.pow(v/255, 0.65); }
 function renderTiles(w){
   const n=w.lo.length, tiles=[];
   for (let t0=0; t0<n; t0+=WTILE){
@@ -1067,12 +1068,15 @@ function drawTiles(g, v, startCol, colsVisible, W, H){
 const _ovr={key:"", img:null};
 function drawOverview(t){
   const c=$("#tOver"); if(!c || !c.clientWidth) return; const {g,W,H}=fitCanvas(c);
-  g.clearRect(0,0,W,H); if(!t.wave){ g.fillStyle="#1b1e24"; g.fillRect(0,H/2-1,W,2); return; }
-  const key=t.id+"|"+W+"x"+H;
+  g.clearRect(0,0,W,H); const w=t.wave; if(!w){ g.fillStyle="#1b1e24"; g.fillRect(0,H/2-1,W,2); return; }
+  const key=t.id+"|"+W+"x"+H+"|"+WCOL.lo;
   if (_ovr.key!==key){
-    const off=document.createElement("canvas"); off.width=W; off.height=H; const og=off.getContext("2d");
-    const v={tiles:renderTiles(t.wave), n:t.wave.lo.length};
-    drawTiles(og, v, 0, v.n, W, H); _ovr.key=key; _ovr.img=off;
+    const off=document.createElement("canvas"); off.width=W; off.height=H; const og=off.getContext("2d"), mid=H/2, n=w.lo.length;
+    const mx=(arr,a,b)=>{ let m=0; for(let i=a;i<b;i++) if(arr[i]>m) m=arr[i]; return m; };
+    const lay=(arr, scale, color)=>{ og.fillStyle=color; og.beginPath();
+      for (let x=0;x<W;x++){ const a=Math.floor(x/W*n), b=Math.max(a+1, Math.floor((x+1)/W*n)); const h=Math.max(0.8, Math.pow(mx(arr,a,b)/255,0.6)*mid*scale); og.rect(x, mid-h, 1, h*2); } og.fill(); };
+    lay(w.lo, 1.0, WCOL.lo); lay(w.mi, 0.5, WCOL.mi); lay(w.hi, 0.28, WCOL.hi);
+    _ovr.key=key; _ovr.img=off;
   }
   g.drawImage(_ovr.img, 0, 0);
   const px=curTime(t)/(t.dur||1)*W;
@@ -1129,7 +1133,7 @@ async function ensureDetail(id){
 async function seekTo(time){
   const t=S.tracks.get(S.current); if(!t) return;
   time=Math.max(0, Math.min((t.dur||0)-0.05, time));
-  if (S.playingId!==S.current){ S.viewTime=time; drawWaves(); return; }
+  if (S.playingId!==S.current){ S.viewTime=time; drawWaves(); return; }   // only scrolls the view; «Слушать» always starts from 0:00
   const go=()=>{ audio.currentTime=time; drawWaves(); }; if (audio.duration) go(); else audio.addEventListener("loadedmetadata", go, {once:true});
 }
 // detail: drag to scroll, tap to jump
@@ -1148,7 +1152,7 @@ audio.addEventListener("ended", ()=>{ updatePlayButtons(); });
 $("#mPlay").onclick=togglePlay;
 $("#mTitle").onclick=()=>{ if(S.playingId) openTrack(S.playingId); };
 $("#mProg").onclick=(e)=>{ const r=e.currentTarget.getBoundingClientRect(); if(audio.duration) audio.currentTime=(e.clientX-r.left)/r.width*audio.duration; };
-$("#tPlay").onclick=async ()=>{ if (S.playingId===S.current) togglePlay(); else { const vt=S.viewTime||0; await playTrack(S.current); const go=()=>{ if (vt>0.05) audio.currentTime=vt; }; if (audio.duration) go(); else audio.addEventListener("loadedmetadata", go, {once:true}); } };
+$("#tPlay").onclick=async ()=>{ if (S.playingId===S.current) togglePlay(); else { S.viewTime=0; await playTrack(S.current); } };
 
 $("#tReveal").onclick=()=>{ const p=$("#tPath"); p.style.display = p.style.display==="none" ? "" : "none"; };
 
@@ -1162,7 +1166,7 @@ function show(view){
   document.querySelectorAll("nav.tabs button").forEach(b=>b.classList.toggle("on", b.dataset.tab===(view==="track"?lastTab:view)));
   window.scrollTo(0,0);
 }
-function openTrack(id){ S.current=id; $("#editRow").classList.remove("on"); $("#tPath").style.display="none"; renderTrack(); show("track"); requestAnimationFrame(drawWaves); }
+function openTrack(id){ S.current=id; if (S.playingId!==id){ S.viewTime=0; S.viewFor=id; } $("#editRow").classList.remove("on"); $("#tPath").style.display="none"; renderTrack(); show("track"); requestAnimationFrame(drawWaves); }
 document.querySelectorAll("nav.tabs button").forEach(b=>b.onclick=()=>{ lastTab=b.dataset.tab; show(b.dataset.tab); });
 $("#backBtn").onclick=()=>show(lastTab);
 document.addEventListener("click",(e)=>{
@@ -1550,6 +1554,15 @@ function cloudFromUrl(){
   }catch(e){ return null; }
 }
 
+const APP_VER = "2026-11-16 · 9";
+(async function checkUpdate(){
+  try{
+    if (location.protocol!=="https:") return;
+    const h = await fetch(location.pathname+"?nc="+Date.now(), {cache:"no-store"}).then(r=>r.text());
+    const m = h.match(/const APP_VER = "([^"]+)"/);
+    if (m && m[1]!==APP_VER){ const sp=new URLSearchParams(location.search); sp.set("v", Date.now()); location.replace(location.pathname+"?"+sp.toString()); }
+  }catch(e){}
+})();
 (async function start(){
   try{ await DB.open();
     for (const t of await DB.all()){
