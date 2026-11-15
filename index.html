@@ -95,6 +95,33 @@ nav.tabs button.on{color:var(--acc);font-weight:600}
 .legend{display:flex;gap:10px;flex-wrap:wrap;font-size:11px;color:var(--muted)}
 .legend i{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:5px;vertical-align:0}
 .zbtn{width:34px;height:34px;border-radius:10px;border:1px solid var(--line2);background:#14161B;color:var(--text);font-size:18px;line-height:1}
+.avbtn{width:44px;height:44px;border-radius:22px;border:2px solid var(--acc);background:#1b1e24;padding:0;overflow:hidden;flex:none;display:flex;align-items:center;justify-content:center}
+.avbtn img,.avbig img{width:100%;height:100%;object-fit:cover}
+.avbig{width:92px;height:92px;border-radius:46px;border:3px solid var(--acc);background:#1b1e24;padding:0;overflow:hidden;flex:none;display:flex;align-items:center;justify-content:center}
+.pcard{padding:16px;border-radius:22px;background:var(--card);border:1px solid var(--line);display:flex;flex-direction:column}
+.pcard.row{flex-direction:row;align-items:center}
+.nameinp{height:44px;border-radius:12px;border:1px solid var(--line2);background:#0f1114;color:var(--text);padding:0 12px;font-size:18px;font-weight:700;font-family:var(--head);width:100%}
+.rank{font-size:13px;font-weight:700;color:#0B0C0F;background:var(--acc);border-radius:8px;padding:3px 10px;align-self:flex-start}
+.charwrap{width:220px;height:230px}
+.charwrap svg{width:100%;height:100%;overflow:visible}
+.xpbar{width:100%;height:12px;border-radius:6px;background:#23262D;overflow:hidden}
+.xpbar div{height:100%;border-radius:6px;background:linear-gradient(90deg,#9BD10F,#C6F432);width:0;transition:width .6s}
+.badges{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+@media(min-width:620px){.badges{grid-template-columns:repeat(3,minmax(0,1fr))}}
+.badge2{padding:12px;border-radius:16px;background:var(--card);border:1px solid var(--line);display:flex;gap:10px;align-items:center}
+.badge2.locked{opacity:.38}
+.badge2 .bi{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex:none;font-family:var(--mono);font-weight:700;font-size:12px;color:#0B0C0F}
+.badge2 b{font-size:13px}.badge2 span{font-size:11px;color:var(--muted)}
+@keyframes bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+@keyframes blink{0%,92%,100%{transform:scaleY(1)}95%{transform:scaleY(.1)}}
+@keyframes pulse{0%,100%{opacity:.35}50%{opacity:.8}}
+@keyframes spin{to{transform:rotate(360deg)}}
+.ch-body{animation:bob 2.4s ease-in-out infinite;transform-origin:100px 200px}
+.ch-eye{animation:blink 4.5s infinite;transform-box:fill-box;transform-origin:center}
+.ch-aura{animation:pulse 2s ease-in-out infinite}
+.ch-disc{animation:spin 3s linear infinite;transform-box:fill-box;transform-origin:center}
+@keyframes pop{0%{transform:scale(1)}40%{transform:scale(1.12)}100%{transform:scale(1)}}
+.levelup{animation:pop .6s ease 2}
 .hero{height:170px;border-radius:24px;display:flex;align-items:center;justify-content:center;overflow:hidden}
 .hero img{width:100%;height:100%;object-fit:cover}
 .edit{display:none;gap:8px;flex-wrap:wrap;align-items:center;padding:12px;border-radius:16px;background:var(--card);border:1px solid var(--line)}
@@ -126,12 +153,15 @@ nav.tabs button.on{color:var(--acc);font-weight:600}
           <span class="eyebrow" id="libEyebrow">Моя библиотека</span>
           <h1 id="libCount">Нет треков</h1>
         </div>
+        <div class="row" style="gap:8px">
+        <button class="avbtn" id="libAvatar" aria-label="Профиль"></button>
         <select class="iconbtn" id="sortSel" aria-label="Сортировка" style="width:auto;padding:0 12px;font-size:13px;appearance:none;-webkit-appearance:none">
           <option value="new">Новые</option>
           <option value="title">Название</option>
           <option value="bpm">BPM</option>
           <option value="key">Тональность</option>
         </select>
+        </div>
       </div>
       <label class="search">
         <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#9AA0AA" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
@@ -244,8 +274,45 @@ nav.tabs button.on{color:var(--acc);font-weight:600}
         <button class="ghost" id="expCsv">Таблица (CSV)</button>
         <input type="file" id="impFile" accept=".json,application/json" style="display:none">
       </div>
-      <span class="dim" style="font-size:12px">Версия приложения: <b id="appVer">2026-11-15 · 2</b></span>
+      <span class="dim" style="font-size:12px">Версия приложения: <b id="appVer">2026-11-16 · 3</b></span>
       <span class="dim" style="font-size:13px;line-height:1.5">«Данные библиотеки» — это BPM, тональности и твои исправления. Сами треки в этот файл не входят. Сохрани его рядом с музыкой в облаке.</span>
+    </div>
+  </section>
+
+  <!-- ============ PROFILE ============ -->
+  <section class="view" id="v-profile" aria-label="Профиль">
+    <div class="top">
+      <div style="display:flex;flex-direction:column;gap:4px"><span class="eyebrow">Профиль</span><h1>Мой DJ-путь</h1></div>
+    </div>
+    <div class="pane">
+      <div class="pcard row" style="gap:16px">
+        <button class="avbig" id="avBtn" aria-label="Сменить аватар"></button>
+        <input type="file" id="avFile" accept="image/*" style="display:none">
+        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:6px">
+          <label class="sr" for="djName">Имя DJ</label>
+          <input id="djName" class="nameinp" placeholder="Твоё DJ-имя" maxlength="32">
+          <span class="rank" id="rankTxt"></span>
+          <span class="dim" style="font-size:12px">Нажми на фото, чтобы сменить аватар</span>
+        </div>
+      </div>
+      <div class="pcard" style="align-items:center;text-align:center;gap:10px">
+        <div class="charwrap" id="charBox"></div>
+        <div style="font-family:var(--head);font-size:26px;font-weight:700">Уровень <span id="lvlNum">1</span></div>
+        <div class="xpbar"><div id="xpFill"></div></div>
+        <span class="dim" style="font-size:13px" id="xpTxt"></span>
+        <span style="font-size:13px;color:var(--acc)" id="nextUnlock"></span>
+      </div>
+      <div class="statgrid">
+        <div class="stat"><small>Треков</small><strong id="pTracks">0</strong></div>
+        <div class="stat"><small>Папок</small><strong id="pFolders">0</strong></div>
+        <div class="stat"><small>Часов музыки</small><strong id="pHours">0</strong></div>
+      </div>
+      <div class="pcard" style="gap:8px">
+        <b style="font-size:15px">Как прокачаться</b>
+        <span class="dim" style="font-size:13px;line-height:1.6">+10 опыта за каждый трек · +40 за каждую папку · +5 за исправленный BPM, тональность или сетку</span>
+      </div>
+      <span class="eyebrow" style="margin-top:4px">Достижения</span>
+      <div class="badges" id="badges"></div>
     </div>
   </section>
 
@@ -261,6 +328,7 @@ nav.tabs button.on{color:var(--acc);font-weight:600}
   <nav class="tabs">
     <button data-tab="lib" class="on"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/></svg>Треки</button>
     <button data-tab="folders"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>Папки</button>
+    <button data-tab="profile"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>Профиль</button>
     <button data-tab="add"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Добавить</button>
   </nav>
 </div>
@@ -699,7 +767,7 @@ async function runQueue(){
     }catch(e){ console.warn("analyze fail", t.fname, e); t.failed=true; t.err=String(e && e.message || e); }
     await DB.put(t);
     S.done++; S.analyzing=null;
-    renderQueue(); renderList(); if (S.current===id) renderTrack();
+    renderQueue(); renderList(); if (S.current===id) renderTrack(); if (S.done%10===0) renderProfile();
     await new Promise(r=>setTimeout(r,10));
   }
   renderAll();
@@ -817,7 +885,7 @@ function renderTrack(){
   $("#eBpm").value = b ?? ""; $("#eKey").value = k || "";
   updatePlayButtons(); updateWave();
 }
-function renderAll(){ renderChips(); renderPills(); renderList(); renderFolders(); renderQueue(); }
+function renderAll(){ renderChips(); renderPills(); renderList(); renderFolders(); renderQueue(); renderProfile(); }
 
 /* =====================================================================
    Player
@@ -847,8 +915,8 @@ const DETAIL_CPS = 150;
 function colRGB(lo, mi, hi){
   const l=lo/255, m=mi/255*0.92, h=hi/255*0.78, sum=l+m+h+1e-6;
   let r=(l*255+m*59+h*78)/sum, g=(l*59+m*227+h*160)/sum, b=(l*78+m*122+h*255)/sum;
-  const e=Math.min(1, Math.max(l,m,h)*1.15), k=0.42+0.58*e;
-  return [r*k, g*k, b*k];
+  const e=Math.min(1, Math.max(l,m,h)*1.2), k=0.7+0.45*e;
+  return [Math.min(255,r*k), Math.min(255,g*k), Math.min(255,b*k)];
 }
 function fitCanvas(c){
   const dpr=Math.min(2, window.devicePixelRatio||1), w=Math.max(10, Math.round(c.clientWidth*dpr)), h=Math.max(10, Math.round(c.clientHeight*dpr));
@@ -864,7 +932,7 @@ function drawOverview(t){
   for (let x=0;x<W;x++){
     const ci=Math.min(n-1, Math.floor(x/W*n));
     let [r,gg,b]=colRGB(w.lo[ci],w.mi[ci],w.hi[ci]);
-    if (x>px){ r*=0.42; gg*=0.42; b*=0.42; }
+    if (x>px){ r*=0.62; gg*=0.62; b*=0.62; }
     const hh=Math.max(1,(0.7*w.amp[ci]/255+0.3*Math.max(w.lo[ci],w.mi[ci],w.hi[ci])/255)*(H*0.92));
     g.fillStyle=`rgb(${r|0},${gg|0},${b|0})`; g.fillRect(x, mid-hh/2, 1, hh);
   }
@@ -882,7 +950,7 @@ function drawDetail(t){
     const tm=start + x/W*z; if (tm<0 || tm>(t.dur||0)) continue;
     const ci=Math.min(n-1, Math.floor(tm*cps));
     let [r,gg,b]=colRGB(w.lo[ci],w.mi[ci],w.hi[ci]);
-    if (tm>now){ r*=0.8; gg*=0.8; b*=0.8; }
+    if (tm>now){ r*=0.93; gg*=0.93; b*=0.93; }
     const hh=Math.max(1,(0.62*w.amp[ci]/255+0.38*Math.max(w.lo[ci],w.mi[ci],w.hi[ci])/255)*(H*0.86));
     g.fillStyle=`rgb(${r|0},${gg|0},${b|0})`; g.fillRect(x, mid-hh/2, 1, hh);
   }
@@ -1011,6 +1079,101 @@ $("#expCsv").onclick=()=>{ const rows=[["Папка","Артист","Назва�
   download("dj-library.csv", "﻿"+rows.map(r=>r.map(v=>'"'+String(v??"").replace(/"/g,'""')+'"').join(";")).join("\n"), "text/csv"); };
 
 /* =====================================================================
+   Profile: avatar, name, character that levels up
+   ===================================================================== */
+const P = { name:"", avatar:null, lastLevel:1 };
+const RANKS = [[1,"Новичок"],[2,"Bedroom DJ"],[4,"Диггер"],[6,"Резидент"],[8,"Хедлайнер"],[10,"Легенда"]];
+const UNLOCKS = [[2,"наушники"],[4,"тёмные очки"],[6,"золотая цепь с пластинкой"],[8,"свой DJ-пульт"],[10,"сияние легенды и корона"],[12,"новый цвет"]];
+function xpNeeded(n){ return 50*(n-1)*n; }               // total XP to reach level n
+function stats(){
+  const live=[...S.tracks.values()].filter(t=>!t.missing);
+  const folders=new Set(live.map(t=>t.folder)).size;
+  const fixes=live.filter(t=>t.bpmUser!=null||t.keyUser!=null||t.gridShift||t.barOffset).length;
+  const hours=live.reduce((a,t)=>a+(t.dur||0),0)/3600;
+  return {tracks:live.length, folders, fixes, hours, xp: live.length*10 + folders*40 + fixes*5};
+}
+function levelOf(xp){ let n=1; while (xpNeeded(n+1)<=xp) n++; return n; }
+function rankOf(l){ let r=RANKS[0][1]; for (const [lv,name] of RANKS) if (l>=lv) r=name; return r; }
+function charSVG(l){
+  const body = l>=12 ? "#B78CFF" : l>=8 ? "#FF9F43" : l>=5 ? "#C6F432" : l>=3 ? "#7CC8FF" : "#9AA3B5";
+  const belly = l>=12 ? "#DCC8FF" : l>=8 ? "#FFD0A0" : l>=5 ? "#E6FF9E" : l>=3 ? "#C6E8FF" : "#C9CFDA";
+  let s = `<svg viewBox="0 0 200 230" role="img" aria-label="Персонаж уровня ${l}">`;
+  if (l>=10) s += `<circle class="ch-aura" cx="100" cy="125" r="96" fill="${body}" opacity=".35"/><circle class="ch-aura" cx="100" cy="125" r="78" fill="${body}" opacity=".25"/>`;
+  s += `<ellipse cx="100" cy="214" rx="56" ry="8" fill="#000" opacity=".45"/>`;
+  s += `<g class="ch-body">`;
+  if (l>=10) s += `<path d="M70 52 L80 30 L92 46 L100 24 L108 46 L120 30 L130 52 Z" fill="#FFD43B" stroke="#C99700" stroke-width="2"/><circle cx="100" cy="30" r="4" fill="#FF5C7A"/>`;
+  s += `<ellipse cx="72" cy="196" rx="16" ry="9" fill="${body}" filter="brightness(.8)"/><ellipse cx="128" cy="196" rx="16" ry="9" fill="${body}"/>`;
+  s += `<ellipse cx="100" cy="128" rx="64" ry="68" fill="${body}"/>`;
+  s += `<ellipse cx="100" cy="148" rx="40" ry="38" fill="${belly}" opacity=".85"/>`;
+  s += `<ellipse cx="38" cy="140" rx="12" ry="20" fill="${body}" transform="rotate(${l>=8?-35:15} 38 140)"/><ellipse cx="162" cy="140" rx="12" ry="20" fill="${body}" transform="rotate(${l>=8?35:-15} 162 140)"/>`;
+  if (l>=4){
+    s += `<rect x="58" y="98" width="36" height="22" rx="9" fill="#0B0C0F"/><rect x="106" y="98" width="36" height="22" rx="9" fill="#0B0C0F"/><rect x="92" y="105" width="16" height="4" fill="#0B0C0F"/>`;
+    s += `<rect x="64" y="102" width="10" height="4" rx="2" fill="#fff" opacity=".7"/><rect x="112" y="102" width="10" height="4" rx="2" fill="#fff" opacity=".7"/>`;
+  } else {
+    s += `<g class="ch-eye"><ellipse cx="78" cy="108" rx="13" ry="15" fill="#fff"/><circle cx="81" cy="110" r="7" fill="#0B0C0F"/><circle cx="84" cy="106" r="2.5" fill="#fff"/></g>`;
+    s += `<g class="ch-eye"><ellipse cx="122" cy="108" rx="13" ry="15" fill="#fff"/><circle cx="125" cy="110" r="7" fill="#0B0C0F"/><circle cx="128" cy="106" r="2.5" fill="#fff"/></g>`;
+  }
+  s += `<path d="M84 134 Q100 ${l>=6?152:146} 116 134" fill="none" stroke="#0B0C0F" stroke-width="4" stroke-linecap="round"/>`;
+  s += `<ellipse cx="66" cy="128" rx="8" ry="5" fill="#FF7A90" opacity=".45"/><ellipse cx="134" cy="128" rx="8" ry="5" fill="#FF7A90" opacity=".45"/>`;
+  if (l>=2){
+    s += `<path d="M40 112 Q40 46 100 46 Q160 46 160 112" fill="none" stroke="#1d2026" stroke-width="10" stroke-linecap="round"/>`;
+    s += `<rect x="26" y="100" width="24" height="38" rx="10" fill="#1d2026"/><rect x="150" y="100" width="24" height="38" rx="10" fill="#1d2026"/>`;
+    s += `<rect x="30" y="106" width="6" height="26" rx="3" fill="${l>=5?"#C6F432":"#4EA0FF"}"/><rect x="164" y="106" width="6" height="26" rx="3" fill="${l>=5?"#C6F432":"#4EA0FF"}"/>`;
+  }
+  if (l>=6){
+    s += `<path d="M66 150 Q100 182 134 150" fill="none" stroke="#FFD43B" stroke-width="4"/>`;
+    s += `<g class="ch-disc"><circle cx="100" cy="172" r="12" fill="#111"/><circle cx="100" cy="172" r="8" fill="none" stroke="#333" stroke-width="1"/><circle cx="100" cy="172" r="3.5" fill="#FF5C7A"/></g>`;
+  }
+  s += `</g>`;
+  if (l>=8){
+    s += `<rect x="30" y="176" width="140" height="40" rx="10" fill="#14161B" stroke="#2A2E37" stroke-width="2"/>`;
+    s += `<g class="ch-disc"><circle cx="64" cy="196" r="14" fill="#0B0C0F" stroke="#3a3f49"/><circle cx="64" cy="196" r="4" fill="#C6F432"/></g>`;
+    s += `<g class="ch-disc"><circle cx="136" cy="196" r="14" fill="#0B0C0F" stroke="#3a3f49"/><circle cx="136" cy="196" r="4" fill="#FF5C7A"/></g>`;
+    s += `<rect x="92" y="186" width="16" height="4" rx="2" fill="#4EA0FF"/><rect x="92" y="194" width="16" height="4" rx="2" fill="#3BE37A"/><rect x="92" y="202" width="16" height="4" rx="2" fill="#FF3B4E"/>`;
+  }
+  if (l>=10) s += `<text x="168" y="60" font-size="18" fill="#FFD43B">♪</text><text x="22" y="74" font-size="14" fill="#FFD43B">♫</text>`;
+  return s + `</svg>`;
+}
+const BADGES = [
+  ["1","Первый трек","Добавлен первый трек",(st)=>st.tracks>=1,"#C6F432"],
+  ["50","Коллекционер","50 треков",(st)=>st.tracks>=50,"#7CC8FF"],
+  ["250","Диггер","250 треков",(st)=>st.tracks>=250,"#FF9F43"],
+  ["1K","Архив","1000 треков",(st)=>st.tracks>=1000,"#B78CFF"],
+  ["5","Порядок","5 папок",(st)=>st.folders>=5,"#3BE37A"],
+  ["20","Куратор","20 папок",(st)=>st.folders>=20,"#4EA0FF"],
+  ["✓","Перфекционист","Исправил BPM, ключ или сетку",(st)=>st.fixes>=1,"#FF5C7A"],
+  ["10ч","Марафон","10 часов музыки",(st)=>st.hours>=10,"#FFD43B"],
+];
+function avatarHtml(){ return P.avatar ? `<img alt="" src="${P.avatar}">` : `<svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#9AA0AA" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>`; }
+function renderProfile(){
+  const st=stats(), l=levelOf(st.xp), a=xpNeeded(l), b=xpNeeded(l+1);
+  $("#libAvatar").innerHTML=avatarHtml(); $("#avBtn").innerHTML=avatarHtml().replace('width="22" height="22"','width="40" height="40"');
+  if (document.activeElement!==$("#djName")) $("#djName").value=P.name;
+  $("#rankTxt").textContent=rankOf(l);
+  if ($("#charBox").dataset.l!==String(l)){ $("#charBox").innerHTML=charSVG(l); $("#charBox").dataset.l=l; }
+  $("#lvlNum").textContent=l;
+  $("#xpFill").style.width=Math.round((st.xp-a)/(b-a)*100)+"%";
+  $("#xpTxt").textContent=`${st.xp} опыта · до уровня ${l+1}: ${b-st.xp}`;
+  const nx=UNLOCKS.find(([lv])=>lv>l); $("#nextUnlock").textContent = nx ? `На ${nx[0]} уровне персонаж получит: ${nx[1]}` : "Все предметы открыты!";
+  $("#pTracks").textContent=st.tracks; $("#pFolders").textContent=st.folders; $("#pHours").textContent=st.hours<10?st.hours.toFixed(1):Math.round(st.hours);
+  $("#badges").innerHTML=BADGES.map(([ic,name,desc,ok,col])=>{ const on=ok(st); return `<div class="badge2${on?"":" locked"}"><div class="bi" style="background:${on?col:"#3a3f49"}">${ic}</div><div style="display:flex;flex-direction:column;gap:2px"><b>${name}</b><span>${desc}</span></div></div>`; }).join("");
+  if (l>P.lastLevel){
+    const was=P.lastLevel; P.lastLevel=l; DB.setMeta("profile", {...P});
+    if (was>=1 && st.tracks>0){ toast(`Новый уровень: ${l}! ${rankOf(l)}`); const c=$("#charBox"); c.classList.remove("levelup"); void c.offsetWidth; c.classList.add("levelup"); }
+  }
+}
+$("#libAvatar").onclick=()=>{ lastTab="profile"; show("profile"); };
+$("#avBtn").onclick=()=>$("#avFile").click();
+$("#avFile").addEventListener("change", async (e)=>{
+  const f=e.target.files[0]; if(!f) return;
+  try{ const bmp=await createImageBitmap(f); const c=document.createElement("canvas"); c.width=c.height=320; const g=c.getContext("2d"); const s=Math.min(bmp.width,bmp.height);
+    g.drawImage(bmp,(bmp.width-s)/2,(bmp.height-s)/2,s,s,0,0,320,320); P.avatar=c.toDataURL("image/jpeg",0.86); await DB.setMeta("profile",{...P}); renderProfile(); toast("Аватар обновлён"); }
+  catch(err){ toast("Не получилось открыть картинку"); }
+  e.target.value="";
+});
+$("#djName").addEventListener("input", (e)=>{ P.name=e.target.value.trim(); clearTimeout(P._t); P._t=setTimeout(()=>DB.setMeta("profile",{...P}),400); });
+
+/* =====================================================================
    Start
    ===================================================================== */
 async function resumeOrPick(){
@@ -1027,6 +1190,7 @@ async function resumeOrPick(){
 (async function start(){
   try{ await DB.open(); for (const t of await DB.all()){ t.missing=true; S.tracks.set(t.id,t); } }catch(e){ console.warn(e); }
   S.rootName = (await DB.getMeta("rootName").catch(()=>null)) || "";
+  const pr = await DB.getMeta("profile"); if (pr) Object.assign(P, pr); else P.lastLevel = levelOf(stats().xp);
   renderAll();
   // tracks from previous sessions are visible as "missing" until the folder is opened again
   const known=[...S.tracks.values()];
