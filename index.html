@@ -277,6 +277,13 @@ nav.tabs button.on{color:var(--acc);font-weight:600}
           <button class="ghost" id="cPhone">Ссылка для телефона</button>
           <button class="ghost" id="cOff">Отключить</button>
         </div>
+        <div style="height:1px;background:var(--line);margin:6px 0"></div>
+        <b style="font-size:15px">Загрузка треков на Диск из приложения</b>
+        <label class="dim" style="font-size:13px" for="cClient">OAuth Client ID (…apps.googleusercontent.com)</label>
+        <input id="cClient" class="nameinp" style="font-size:13px;font-family:var(--mono);font-weight:500" placeholder="123456-abc.apps.googleusercontent.com" autocomplete="off">
+        <label style="display:flex;gap:8px;align-items:center;color:var(--soft);font-size:14px"><input type="checkbox" id="cAuto" style="width:20px;height:20px" checked> Автоматически загружать новые треки из выбранной папки</label>
+        <div class="row" style="flex-wrap:wrap;gap:10px"><button class="big" id="cLogin">Войти в Google</button><button class="ghost" id="cUpNow">Загрузить сейчас</button></div>
+        <span class="dim" style="font-size:12px" id="cLoginState">Не выполнен вход</span>
         <span class="dim" style="font-size:12px;line-height:1.5">Ссылка и ключ хранятся только в этом приложении на этом устройстве. Чтобы не анализировать треки заново на телефоне, сохрани «данные библиотеки» и положи файл dj-library-data.json в эту же папку на Диске — приложение подхватит его само.</span>
       </div>
       <span class="eyebrow" style="margin-top:8px">Резервная копия</span>
@@ -290,7 +297,7 @@ nav.tabs button.on{color:var(--acc);font-weight:600}
         <button class="ghost" id="expCsv">Таблица (CSV)</button>
         <input type="file" id="impFile" accept=".json,application/json" style="display:none">
       </div>
-      <span class="dim" style="font-size:12px">Версия приложения: <b id="appVer">2026-11-16 · 5</b></span>
+      <span class="dim" style="font-size:12px">Версия приложения: <b id="appVer">2026-11-16 · 7</b></span>
       <span class="dim" style="font-size:13px;line-height:1.5">«Данные библиотеки» — это BPM, тональности и твои исправления. Сами треки в этот файл не входят. Сохрани его рядом с музыкой в облаке.</span>
     </div>
   </section>
@@ -415,6 +422,7 @@ const DB = {
   open(){ return new Promise((res,rej)=>{ const r=indexedDB.open("djlib",1); r.onupgradeneeded=()=>{ const d=r.result; d.createObjectStore("tracks",{keyPath:"id"}); d.createObjectStore("meta"); }; r.onsuccess=()=>{this.db=r.result;res();}; r.onerror=()=>rej(r.error); }); },
   tx(store,mode){ return this.db.transaction(store,mode).objectStore(store); },
   all(){ return new Promise((res,rej)=>{ const r=this.tx("tracks","readonly").getAll(); r.onsuccess=()=>res(r.result||[]); r.onerror=()=>rej(r.error); }); },
+  del(id){ return new Promise((res)=>{ try{ const r=this.tx("tracks","readwrite").delete(id); r.onsuccess=()=>res(); r.onerror=()=>res(); }catch(e){res();} }); },
   put(t){ return new Promise((res,rej)=>{ const r=this.tx("tracks","readwrite").put(t); r.onsuccess=()=>res(); r.onerror=()=>rej(r.error); }); },
   getMeta(k){ return new Promise((res)=>{ try{ const r=this.tx("meta","readonly").get(k); r.onsuccess=()=>res(r.result); r.onerror=()=>res(null);}catch(e){res(null);} }); },
   setMeta(k,v){ return new Promise((res)=>{ try{ const r=this.tx("meta","readwrite").put(v,k); r.onsuccess=()=>res(); r.onerror=()=>res(); }catch(e){res();} }); },
@@ -444,6 +452,7 @@ async function readTags(file){
   const out = {};
   try{
     const head = new Uint8Array(await file.slice(0,10).arrayBuffer());
+    if (head[0]===0x52&&head[1]===0x49&&head[2]===0x46&&head[3]===0x46) return await readWavInfo(file, out);
     if (head[0]!==0x49||head[1]!==0x44||head[2]!==0x33) return out;
     const ver = head[3];
     const size = (head[6]&127)<<21 | (head[7]&127)<<14 | (head[8]&127)<<7 | (head[9]&127);
@@ -481,6 +490,21 @@ async function readTags(file){
       }
     }
   }catch(e){ /* tags are optional */ }
+  return out;
+}
+async function readWavInfo(file, out){
+  try{
+    const buf=new Uint8Array(await file.slice(0, Math.min(file.size, 4*1024*1024)).arrayBuffer()), dv=new DataView(buf.buffer);
+    const tail=file.size>4*1024*1024 ? new Uint8Array(await file.slice(file.size-256*1024).arrayBuffer()) : null;
+    const scan=(u8)=>{ const d=new DataView(u8.buffer); for (let i=0;i+12<u8.length;i++){
+      if (u8[i]===0x4C&&u8[i+1]===0x49&&u8[i+2]===0x53&&u8[i+3]===0x54&&u8[i+8]===0x49&&u8[i+9]===0x4E&&u8[i+10]===0x46&&u8[i+11]===0x4F){
+        const end=Math.min(u8.length, i+8+d.getUint32(i+4,true)); let o=i+12;
+        while (o+8<=end){ const id=String.fromCharCode(u8[o],u8[o+1],u8[o+2],u8[o+3]); const sz=d.getUint32(o+4,true); const raw=u8.subarray(o+8,o+8+sz);
+          let v=""; try{ v=new TextDecoder("utf-8",{fatal:true}).decode(raw); }catch(e){ v=new TextDecoder("windows-1251").decode(raw); } v=v.replace(/\u0000+$/,"").trim();
+          if (id==="INAM"&&v) out.title=v; if (id==="IART"&&v) out.artist=v; if (id==="IGNR"&&v) out.genre=v; o+=8+sz+(sz&1); }
+        return true; } } return false; };
+    if (!scan(buf) && tail) scan(tail);
+  }catch(e){}
   return out;
 }
 async function smallCover(blob){
@@ -637,7 +661,54 @@ function detectKey(x, sr){
 
 let _actx=null;
 function actx(){ if(!_actx){ const C=window.AudioContext||window.webkitAudioContext; _actx=new C(); } return _actx; }
-function decode(ab){ return new Promise((res,rej)=>{ try{ const p=actx().decodeAudioData(ab, res, rej); if(p&&p.then) p.then(res,rej); }catch(e){rej(e);} }); }
+function decodeNative(ab){ return new Promise((res,rej)=>{ try{ const p=actx().decodeAudioData(ab, res, rej); if(p&&p.then) p.then(res,rej); }catch(e){rej(e);} }); }
+/* Fallback PCM decoder for WAV / RF64 / AIFF / AIFF-C (uncompressed) when the browser can't decode */
+function pcmDecode(ab){
+  const dv=new DataView(ab), id=(o)=>String.fromCharCode(dv.getUint8(o),dv.getUint8(o+1),dv.getUint8(o+2),dv.getUint8(o+3));
+  let le=true, fmt=null, ch=0, sr=0, bits=0, dataOff=0, dataLen=0;
+  const riff=id(0);
+  if (riff==="RIFF"||riff==="RF64"||riff==="BW64"){
+    let o=12, ds64=0;
+    while (o+8<=dv.byteLength){
+      const cid=id(o); let sz=dv.getUint32(o+4,true);
+      if (cid==="ds64"){ ds64=dv.getUint32(o+16,true)+dv.getUint32(o+20,true)*4294967296; }
+      if (cid==="fmt "){ fmt=dv.getUint16(o+8,true); ch=dv.getUint16(o+10,true); sr=dv.getUint32(o+12,true); bits=dv.getUint16(o+22,true); if(fmt===0xFFFE && sz>=26) fmt=dv.getUint16(o+32,true); }
+      if (cid==="data"){ dataOff=o+8; dataLen=(sz===0xFFFFFFFF&&ds64)?ds64:sz; break; }
+      o+=8+sz+(sz&1);
+    }
+  } else if (riff==="FORM"){
+    le=false; const kind=id(8); let o=12; fmt=1;
+    while (o+8<=dv.byteLength){
+      const cid=id(o), sz=dv.getUint32(o+4,false);
+      if (cid==="COMM"){
+        ch=dv.getUint16(o+8,false); bits=dv.getUint16(o+14,false);
+        const e=dv.getUint16(o+16,false)&0x7FFF, hi=dv.getUint32(o+18,false), lo=dv.getUint32(o+22,false);
+        sr=Math.round((hi*4294967296+lo)*Math.pow(2,e-16383-63));
+        if (kind==="AIFC" && sz>=22){ const c=id(o+26); if (c==="sowt") le=true; else if (c==="fl32"||c==="FL32"){ fmt=3; } else if (c!=="NONE"&&c!=="twos") throw new Error("Сжатый AIFF не поддерживается"); }
+      }
+      if (cid==="SSND"){ const off=dv.getUint32(o+8,false); dataOff=o+16+off; dataLen=sz-8-off; break; }
+      o+=8+sz+(sz&1);
+    }
+  } else throw new Error("Неизвестный формат");
+  if (!ch||!sr||!bits||!dataOff) throw new Error("Повреждённый заголовок");
+  const bps=bits/8, frames=Math.floor(Math.min(dataLen, dv.byteLength-dataOff)/(bps*ch));
+  const chans=[]; for(let c=0;c<ch;c++) chans.push(new Float32Array(frames));
+  let o=dataOff;
+  for (let i=0;i<frames;i++) for (let c=0;c<ch;c++){
+    let v;
+    if (fmt===3) v = bits===64 ? dv.getFloat64(o,le) : dv.getFloat32(o,le);
+    else if (bits===8) v = le ? (dv.getUint8(o)-128)/128 : dv.getInt8(o)/128;
+    else if (bits===16) v = dv.getInt16(o,le)/32768;
+    else if (bits===24){ const b0=dv.getUint8(o),b1=dv.getUint8(o+1),b2=dv.getUint8(o+2); let x = le ? (b0|(b1<<8)|(b2<<16)) : (b2|(b1<<8)|(b0<<16)); if (x&0x800000) x-=0x1000000; v=x/8388608; }
+    else v = dv.getInt32(o,le)/2147483648;
+    chans[c][i]=v; o+=bps;
+  }
+  return { sampleRate:sr, numberOfChannels:ch, length:frames, duration:frames/sr, getChannelData:(c)=>chans[c] };
+}
+async function decode(ab){
+  try{ return await decodeNative(ab.slice(0)); }
+  catch(e){ try{ return pcmDecode(ab); }catch(e2){ throw e; } }
+}
 async function resampleMono(buf, sr, from, dur){
   const start=Math.floor(from*buf.sampleRate), len=Math.floor(dur*buf.sampleRate);
   const ch=buf.numberOfChannels, mono=new Float32Array(len);
@@ -710,12 +781,12 @@ async function getFile(id){
   return f.getFile ? await f.getFile() : f;
 }
 function isAudio(name){ const e=name.split(".").pop().toLowerCase(); return AUDIO_EXT.includes(e) && !name.startsWith("._"); }
-async function ingest(entries){ // entries: [{path, file|handle, size, mtime}]
-  const seen=new Set();
+const trackId = (path, size) => path.split("/").pop() + "|" + size;   // same file = same id, wherever it lives (Mac, Google Drive)
+async function ingest(entries){ // entries: [{path, file|handle|drive, size, mtime}]
   for (const e of entries){
-    const id = e.path + "|" + e.size;
-    seen.add(id);
-    S.files.set(id, e.handle || e.file || {drive:e.drive, name:e.path.split("/").pop()});
+    const id = trackId(e.path, e.size);
+    const cur = S.files.get(id);
+    if (!(e.drive && cur && !cur.drive)) S.files.set(id, e.handle || e.file || {drive:e.drive, name:e.path.split("/").pop()});
     let t = S.tracks.get(id);
     const parts = e.path.split("/"); const fname=parts[parts.length-1];
     const folder = parts.length>2 ? parts[1] : "Без папки";
@@ -726,7 +797,7 @@ async function ingest(entries){ // entries: [{path, file|handle, size, mtime}]
     } else if (t.folder!==folder){ t.folder=folder; t.path=e.path; await DB.put(t); }
     if ((!t.analyzed || (t.av||1)<2) && !t.failed) S.queue.push(id);
   }
-  for (const [id,t] of S.tracks) t.missing = !seen.has(id);
+  for (const [id,t] of S.tracks) t.missing = !S.files.has(id);
   S.total = S.queue.length; S.done = 0;
   renderAll(); runQueue();
 }
@@ -752,14 +823,17 @@ async function loadFromHandle(dir){
   await DB.setMeta("rootName", dir.name);
   await ingest(out);
   toast("Найдено треков: "+out.length);
+  maybeUpload(out);
 }
 $("#dirInput").addEventListener("change", async (ev)=>{
   const files=[...ev.target.files].filter(f=>isAudio(f.name));
   if (!files.length){ toast("В папке нет аудиофайлов"); return; }
   S.rootName = (files[0].webkitRelativePath||"").split("/")[0];
   await DB.setMeta("rootName", S.rootName);
-  await ingest(files.map(f=>({path:f.webkitRelativePath||f.name, file:f, size:f.size, mtime:f.lastModified})));
+  const ents=files.map(f=>({path:f.webkitRelativePath||f.name, file:f, size:f.size, mtime:f.lastModified}));
+  await ingest(ents);
   toast("Найдено треков: "+files.length);
+  maybeUpload(ents);
   ev.target.value="";
 });
 
@@ -1256,7 +1330,7 @@ function setCloudState(text, on){
   b.style.cssText = on ? "color:#C6F432;background:rgba(198,244,50,.14)" : "color:#9AA0AA;background:#1d2026";
 }
 async function loadCloud(){
-  if (!CLOUD.cfg) return;
+  if (!CLOUD.cfg || !CLOUD.cfg.folderId || !CLOUD.cfg.key) return;
   setCloudState("Читаю Google Диск…", true);
   try{
     const meta=await gdrive("files/"+CLOUD.cfg.folderId, {fields:"id,name,mimeType", supportsAllDrives:"true"});
@@ -1266,6 +1340,7 @@ async function loadCloud(){
     for (const df of dataFiles){
       try{ const r=await fetch(mediaUrl(df.id)); if (r.ok){ const n=await mergeData(await r.json()); if (n) toast("Подхватил готовый анализ: "+n+" треков"); } }catch(e){}
     }
+    CLOUD.rootName=meta.name; CLOUD.index=new Set(out.map(e=>trackId(e.path,e.size)));
     S.rootName=meta.name; await DB.setMeta("rootName", meta.name);
     const rb=$("#reconnect"); if (rb) rb.remove();
     await ingest(out);
@@ -1281,7 +1356,7 @@ $("#cSave").onclick=async ()=>{
   const id=driveFolderId($("#cLink").value), key=$("#cKey").value.trim();
   if (!id){ toast("Вставь ссылку именно на папку (…/folders/…)"); return; }
   if (!/^AIza[0-9A-Za-z_-]{20,}$/.test(key)){ toast("Ключ должен начинаться с AIza…"); return; }
-  await saveCloud({folderId:id, key, link:$("#cLink").value.trim()}); await loadCloud();
+  await saveCloud({...(CLOUD.cfg||{}), folderId:id, key, link:$("#cLink").value.trim()}); await loadCloud();
 };
 $("#cRefresh").onclick=()=>{ if (CLOUD.cfg) loadCloud(); else toast("Сначала подключи Google Диск"); };
 $("#cOff").onclick=async ()=>{ CLOUD.cfg=null; await DB.setMeta("cloud", null); $("#cKey").value=""; setCloudState("Не подключён", false); toast("Google Диск отключён"); };
@@ -1292,6 +1367,146 @@ $("#cPhone").onclick=async ()=>{
   try{ await navigator.clipboard.writeText(url); toast("Ссылка скопирована — открой её на телефоне или вставь в бота"); }
   catch(e){ prompt("Скопируй ссылку:", url); }
 };
+/* ---------- upload to Google Drive (OAuth, works in Chrome/Safari on Mac) ---------- */
+const UP = { token:null, exp:0, pending:[], busy:false, total:0, done:0, cur:"", curPct:0, failed:0 };
+function loadGIS(){
+  return new Promise((res,rej)=>{
+    if (window.google && google.accounts && google.accounts.oauth2) return res();
+    const sc=document.createElement("script"); sc.src="https://accounts.google.com/gsi/client"; sc.async=true;
+    sc.onload=()=>res(); sc.onerror=()=>rej(new Error("Не загрузился вход Google")); document.head.appendChild(sc);
+  });
+}
+function tokenValid(){ return UP.token && Date.now() < UP.exp-60000; }
+async function getToken(){
+  if (tokenValid()) return UP.token;
+  const cid = CLOUD.cfg && CLOUD.cfg.clientId; if (!cid) throw new Error("Вставь OAuth Client ID");
+  await loadGIS();
+  return new Promise((res,rej)=>{
+    const tc=google.accounts.oauth2.initTokenClient({ client_id:cid, scope:"https://www.googleapis.com/auth/drive",
+      callback:(r)=>{ if (r.error) return rej(new Error(r.error)); UP.token=r.access_token; UP.exp=Date.now()+(+r.expires_in||3600)*1000; renderUpload(); res(UP.token); },
+      error_callback:(e)=>rej(new Error(e && e.type==="popup_closed" ? "Окно входа закрыто" : "Вход не выполнен")) });
+    tc.requestAccessToken();
+  });
+}
+async function gauth(url, opts={}){
+  if (!tokenValid()) throw new Error("Нужно войти в Google");
+  opts.headers={...(opts.headers||{}), Authorization:"Bearer "+UP.token};
+  const r=await fetch(url, opts);
+  if (r.status===401){ UP.token=null; renderUpload(); throw new Error("Вход в Google истёк — нажми «Войти в Google»"); }
+  return r;
+}
+const DAPI="https://www.googleapis.com/drive/v3/files";
+async function ensureFolder(parentId, name, cache){
+  const k=parentId+"/"+name; if (cache[k]) return cache[k];
+  const q=`name='${name.replace(/\\/g,"\\\\").replace(/'/g,"\\'")}' and '${parentId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`;
+  let r=await gauth(DAPI+"?"+new URLSearchParams({q, fields:"files(id)", supportsAllDrives:"true", includeItemsFromAllDrives:"true"}));
+  const j=await r.json(); if (j.files && j.files.length) return cache[k]=j.files[0].id;
+  r=await gauth(DAPI+"?supportsAllDrives=true&fields=id", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({name, mimeType:"application/vnd.google-apps.folder", parents:[parentId]})});
+  if (!r.ok) throw new Error("Не удалось создать папку «"+name+"» ("+r.status+")");
+  return cache[k]=(await r.json()).id;
+}
+async function uploadFile(file, parentId, onProgress){
+  const init=await gauth("https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable&supportsAllDrives=true&fields=id", {method:"POST",
+    headers:{"Content-Type":"application/json; charset=UTF-8","X-Upload-Content-Type":file.type||"application/octet-stream","X-Upload-Content-Length":String(file.size)},
+    body:JSON.stringify({name:file.name, parents:[parentId]})});
+  if (!init.ok) throw new Error("Диск ответил "+init.status+(init.status===403||init.status===404?" — нет прав на папку":""));
+  const loc=init.headers.get("Location"); if (!loc) throw new Error("Диск не дал адрес загрузки");
+  const CH=8*1024*1024; let off=0, tries=0;
+  while (off<file.size){
+    const end=Math.min(file.size, off+CH);
+    let r;
+    try{ r=await fetch(loc, {method:"PUT", headers:{"Content-Range":`bytes ${off}-${end-1}/${file.size}`}, body:file.slice(off,end)}); }
+    catch(e){ if (++tries>4) throw new Error("Обрыв связи при загрузке"); await new Promise(z=>setTimeout(z,1500*tries)); continue; }
+    if (r.status===308){ const rg=r.headers.get("Range"); off = rg ? parseInt(rg.split("-")[1],10)+1 : end; tries=0; }
+    else if (r.ok){ off=file.size; }
+    else if (r.status>=500 && ++tries<=4){ await new Promise(z=>setTimeout(z,1500*tries)); }
+    else throw new Error("Загрузка прервалась ("+r.status+")");
+    onProgress(off/file.size);
+  }
+}
+function relParts(entries){
+  // keep structure; if files sit right in the chosen folder, keep that folder's name as a sub-folder on the Drive
+  const flat = entries.some(e=>e.path.split("/").length===2);
+  return (e)=>{ const p=e.path.split("/"); return flat ? p.slice(0,-1) : p.slice(1,-1); };
+}
+function maybeUpload(entries){
+  if (entries.some(e=>!e.drive)) UP.lastLocal=entries.filter(e=>!e.drive);
+  if (!CLOUD.cfg || !CLOUD.cfg.clientId || !CLOUD.cfg.folderId || !$("#cAuto").checked) return;
+  const local=entries.filter(e=>!e.drive);
+  const idx=CLOUD.index||new Set();
+  const todo=local.filter(e=>!idx.has(trackId(e.path,e.size)));
+  if (!todo.length) return;
+  const rp=relParts(local);
+  for (const e of todo) UP.pending.push({e, dirs:rp(e)});
+  renderUpload();
+  if (tokenValid()) runUpload();
+}
+async function runUpload(){
+  if (UP.busy || !UP.pending.length) return;
+  if (!CLOUD.index && CLOUD.cfg && CLOUD.cfg.key) await loadCloud();
+  if (CLOUD.index){ const seen=new Set(); UP.pending=UP.pending.filter(({e})=>{ const id=trackId(e.path,e.size); if (CLOUD.index.has(id)||seen.has(id)) return false; seen.add(id); return true; }); }
+  if (!UP.pending.length){ renderUpload(); return; }
+  UP.busy=true; UP.total=UP.pending.length; UP.done=0; UP.failed=0;
+  const cache={};
+  try{
+    while (UP.pending.length){
+      const {e, dirs}=UP.pending[0];
+      UP.cur=e.path.split("/").pop(); UP.curPct=0; renderUpload();
+      try{
+        let parent=CLOUD.cfg.folderId; for (const d of dirs) parent=await ensureFolder(parent, d, cache);
+        const file = e.file || (e.handle ? await e.handle.getFile() : null);
+        if (file && file.size>0) await uploadFile(file, parent, (f)=>{ UP.curPct=f; renderUpload(); });
+        (CLOUD.index ||= new Set()).add(trackId(e.path,e.size));
+      }catch(err){
+        if (/войти|истёк|Нужно войти/i.test(err.message)) throw err;
+        UP.failed++; console.warn(err); toast(err.message);
+      }
+      UP.pending.shift(); UP.done++; renderUpload();
+    }
+    toast("Загрузка на Google Диск завершена"); loadCloud();
+  }catch(err){ toast(err.message); }
+  UP.busy=false; UP.cur=""; renderUpload();
+}
+function renderUpload(){
+  const st=$("#cLoginState"); if (st) st.textContent = tokenValid() ? "Вход выполнен — можно загружать" : (CLOUD.cfg&&CLOUD.cfg.clientId ? "Нужно войти (вход действует около часа)" : "Не выполнен вход");
+  let box=$("#upBox"); if (!box){ box=document.createElement("div"); box.id="upBox"; box.style.cssText="display:flex;flex-direction:column;gap:10px"; $("#queueBox").after(box); }
+  if (!UP.pending.length && !UP.busy){ box.innerHTML=""; return; }
+  const left=UP.pending.length, pct=UP.total? Math.round((UP.done + UP.curPct)/UP.total*100) : 0;
+  box.innerHTML = `<div class="qitem"><div class="row between"><b style="font-size:15px">Загрузка на Google Диск: ${UP.busy?UP.done+" из "+UP.total:left+" "+plural(left,"трек","трека","треков")}</b><span class="badge" style="color:#C6F432;background:rgba(198,244,50,.14)">${UP.busy?pct+"%":"ждёт"}</span></div>
+    <div class="prog"><div style="width:${pct}%"></div></div>
+    <span style="font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${UP.busy? "Сейчас: "+esc(UP.cur)+" · "+Math.round(UP.curPct*100)+"%" : "Нажми «Войти в Google», и загрузка начнётся"}</span>
+    ${!UP.busy && !tokenValid() ? '<button class="smallbtn acc" id="upLoginBtn" style="align-self:flex-start">Войти и загрузить</button>':""}</div>`;
+  const b=$("#upLoginBtn"); if (b) b.onclick=()=>$("#cLogin").click();
+}
+async function createSharedFolder(){
+  const r=await gauth(DAPI+"?fields=id,name", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({name:"DJ Music", mimeType:"application/vnd.google-apps.folder"})});
+  if (!r.ok) throw new Error("Не удалось создать папку на Диске");
+  const f=await r.json();
+  await gauth(`${DAPI}/${f.id}/permissions?supportsAllDrives=true`, {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({role:"reader", type:"anyone"})});
+  return f.id;
+}
+$("#cLogin").onclick=async ()=>{
+  const cid=$("#cClient").value.trim();
+  if (!/\.apps\.googleusercontent\.com$/.test(cid)){ toast("Client ID должен заканчиваться на .apps.googleusercontent.com"); return; }
+  CLOUD.cfg = {...(CLOUD.cfg||{}), clientId:cid};
+  const key=$("#cKey").value.trim(); if (key) CLOUD.cfg.key=key;
+  await DB.setMeta("cloud", CLOUD.cfg);
+  try{
+    await getToken();
+    if (!CLOUD.cfg.folderId){
+      const id=await createSharedFolder();
+      CLOUD.cfg.folderId=id; CLOUD.cfg.link="https://drive.google.com/drive/folders/"+id; $("#cLink").value=CLOUD.cfg.link;
+      await DB.setMeta("cloud", CLOUD.cfg); toast("Создал на Диске папку «DJ Music» с доступом по ссылке");
+    }
+    if (CLOUD.cfg.key) await loadCloud();
+    if (!UP.pending.length && UP.lastLocal) maybeUpload(UP.lastLocal);
+    runUpload();
+  }catch(e){ toast(e.message); }
+  renderUpload();
+};
+$("#cUpNow").onclick=()=>$("#cLogin").click();
+$("#cAuto").addEventListener("change", async ()=>{ if (CLOUD.cfg){ CLOUD.cfg.auto=$("#cAuto").checked; await DB.setMeta("cloud", CLOUD.cfg); } });
+
 function cloudFromUrl(){
   try{
     const sp=new URLSearchParams(location.search); const c=sp.get("c"); if(!c) return null;
@@ -1301,16 +1516,22 @@ function cloudFromUrl(){
 }
 
 (async function start(){
-  try{ await DB.open(); for (const t of await DB.all()){ t.missing=true; S.tracks.set(t.id,t); } }catch(e){ console.warn(e); }
+  try{ await DB.open();
+    for (const t of await DB.all()){
+      const nid = trackId(t.path||t.fname||t.id, t.size);
+      if (nid!==t.id){ await DB.del(t.id); const ex=S.tracks.get(nid); t.id=nid; if (ex && ex.analyzed && !t.analyzed) continue; await DB.put(t); }
+      t.missing=true; S.tracks.set(t.id,t);
+    }
+  }catch(e){ console.warn(e); }
   S.rootName = (await DB.getMeta("rootName").catch(()=>null)) || "";
   const pr = await DB.getMeta("profile"); if (pr) Object.assign(P, pr); else P.lastLevel = levelOf(stats().xp);
   // Google Drive config: from a "phone link" (?c=...) or saved earlier
   const fromUrl = cloudFromUrl();
   if (fromUrl){ await saveCloud({...fromUrl, link:"https://drive.google.com/drive/folders/"+fromUrl.folderId}); }
-  else { const c=await DB.getMeta("cloud"); if (c && c.folderId && c.key) CLOUD.cfg=c; }
-  if (CLOUD.cfg){ $("#cLink").value=CLOUD.cfg.link||""; $("#cKey").value=CLOUD.cfg.key; }
-  renderAll();
-  if (CLOUD.cfg){ for (const t of S.tracks.values()) t.missing=false; renderAll(); loadCloud(); return; }
+  else { const c=await DB.getMeta("cloud"); if (c && (c.folderId || c.clientId)) CLOUD.cfg=c; }
+  if (CLOUD.cfg){ $("#cLink").value=CLOUD.cfg.link||""; $("#cKey").value=CLOUD.cfg.key||""; $("#cClient").value=CLOUD.cfg.clientId||""; if (CLOUD.cfg.auto===false) $("#cAuto").checked=false; }
+  renderAll(); renderUpload();
+  if (CLOUD.cfg && CLOUD.cfg.folderId && CLOUD.cfg.key){ for (const t of S.tracks.values()) t.missing=false; renderAll(); loadCloud(); return; }
   // tracks from previous sessions are visible as "missing" until the folder is opened again
   const known=[...S.tracks.values()];
   if (known.length){
