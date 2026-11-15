@@ -264,6 +264,21 @@ nav.tabs button.on{color:var(--acc);font-weight:600}
       </button>
       <input type="file" id="dirInput" webkitdirectory multiple style="display:none">
       <div id="queueBox" style="display:flex;flex-direction:column;gap:10px"></div>
+      <span class="eyebrow" style="margin-top:8px">Google Диск</span>
+      <div class="pcard" style="gap:10px">
+        <div class="row between"><b id="cloudState" style="font-size:15px">Не подключён</b><span class="badge" id="cloudBadge" style="color:#9AA0AA;background:#1d2026">выкл</span></div>
+        <label class="dim" style="font-size:13px" for="cLink">Ссылка на папку с музыкой (доступ «Все, у кого есть ссылка»)</label>
+        <input id="cLink" class="nameinp" style="font-size:14px;font-family:var(--mono);font-weight:500" placeholder="https://drive.google.com/drive/folders/..." autocomplete="off">
+        <label class="dim" style="font-size:13px" for="cKey">Ключ Google API</label>
+        <input id="cKey" class="nameinp" type="password" style="font-size:14px;font-family:var(--mono);font-weight:500" placeholder="AIza..." autocomplete="off">
+        <div class="row" style="flex-wrap:wrap;gap:10px">
+          <button class="big" id="cSave">Подключить</button>
+          <button class="ghost" id="cRefresh">Обновить</button>
+          <button class="ghost" id="cPhone">Ссылка для телефона</button>
+          <button class="ghost" id="cOff">Отключить</button>
+        </div>
+        <span class="dim" style="font-size:12px;line-height:1.5">Ссылка и ключ хранятся только в этом приложении на этом устройстве. Чтобы не анализировать треки заново на телефоне, сохрани «данные библиотеки» и положи файл dj-library-data.json в эту же папку на Диске — приложение подхватит его само.</span>
+      </div>
       <span class="eyebrow" style="margin-top:8px">Резервная копия</span>
       <div class="note" style="margin:0">
         <svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#C6F432" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 18a5 5 0 0 1-.5-9.97A6 6 0 0 1 18 9a4.5 4.5 0 0 1-.5 9z"/><path d="m9 13 2 2 4-4"/></svg>
@@ -275,7 +290,7 @@ nav.tabs button.on{color:var(--acc);font-weight:600}
         <button class="ghost" id="expCsv">Таблица (CSV)</button>
         <input type="file" id="impFile" accept=".json,application/json" style="display:none">
       </div>
-      <span class="dim" style="font-size:12px">Версия приложения: <b id="appVer">2026-11-16 · 4</b></span>
+      <span class="dim" style="font-size:12px">Версия приложения: <b id="appVer">2026-11-16 · 5</b></span>
       <span class="dim" style="font-size:13px;line-height:1.5">«Данные библиотеки» — это BPM, тональности и твои исправления. Сами треки в этот файл не входят. Сохрани его рядом с музыкой в облаке.</span>
     </div>
   </section>
@@ -689,14 +704,18 @@ async function analyzeFile(file){
 /* =====================================================================
    Loading a folder (read-only)
    ===================================================================== */
-async function getFile(id){ const f=S.files.get(id); if(!f) return null; return f.getFile ? await f.getFile() : f; }
+async function getFile(id){
+  const f=S.files.get(id); if(!f) return null;
+  if (f.drive){ const r=await fetch(mediaUrl(f.drive)); if(!r.ok) throw new Error("Google Диск: "+r.status); const b=await r.blob(); return new File([b], f.name, {type:b.type||"audio/mpeg"}); }
+  return f.getFile ? await f.getFile() : f;
+}
 function isAudio(name){ const e=name.split(".").pop().toLowerCase(); return AUDIO_EXT.includes(e) && !name.startsWith("._"); }
 async function ingest(entries){ // entries: [{path, file|handle, size, mtime}]
   const seen=new Set();
   for (const e of entries){
     const id = e.path + "|" + e.size;
     seen.add(id);
-    S.files.set(id, e.handle || e.file);
+    S.files.set(id, e.handle || e.file || {drive:e.drive, name:e.path.split("/").pop()});
     let t = S.tracks.get(id);
     const parts = e.path.split("/"); const fname=parts[parts.length-1];
     const folder = parts.length>2 ? parts[1] : "Без папки";
@@ -806,7 +825,8 @@ function renderList(){
   const arr=visibleTracks(), L=$("#list");
   if (!all.length){
     L.innerHTML="";
-    $("#libEmpty").innerHTML = `<div class="empty"><b style="font-size:20px;font-family:var(--head)">Добавь свою музыку</b><p>Выбери папку с треками на Mac. Приложение определит BPM и тональность и разложит треки по папкам. Сами файлы не меняются.</p><button class="big" id="emptyPick">Выбрать папку с музыкой</button></div>`;
+    $("#libEmpty").innerHTML = `<div class="empty"><b style="font-size:20px;font-family:var(--head)">Добавь свою музыку</b><p>Выбери папку с треками на Mac. Приложение определит BPM и тональность и разложит треки по папкам. Сами файлы не меняются.</p><div class="row" style="flex-wrap:wrap;gap:10px"><button class="big" id="emptyPick">Выбрать папку с музыкой</button><button class="ghost" id="emptyCloud">Google Диск</button></div></div>`;
+    $("#emptyCloud").onclick=()=>{ lastTab="add"; show("add"); setTimeout(()=>$("#cLink").focus(),50); };
     $("#emptyPick").onclick=()=>{ resumeOrPick(); };
     return;
   }
@@ -893,10 +913,12 @@ function renderAll(){ renderChips(); renderPills(); renderList(); renderFolders(
    ===================================================================== */
 const audio=$("#audio"); let objUrl=null;
 async function playTrack(id){
-  const f=await getFile(id);
-  if (!f){ toast("Файл недоступен — выбери папку ещё раз во вкладке «Добавить»"); return; }
-  if (objUrl) URL.revokeObjectURL(objUrl);
-  objUrl=URL.createObjectURL(f); audio.src=objUrl; S.playingId=id;
+  const src=S.files.get(id);
+  if (!src){ toast("Файл недоступен — открой папку или подключи Google Диск во вкладке «Добавить»"); return; }
+  if (objUrl){ URL.revokeObjectURL(objUrl); objUrl=null; }
+  if (src.drive){ audio.src=mediaUrl(src.drive); }
+  else { const f=await getFile(id); objUrl=URL.createObjectURL(f); audio.src=objUrl; }
+  S.playingId=id;
   try{ await audio.play(); }catch(e){ toast("Браузер не может проиграть этот формат"); }
   const t=S.tracks.get(id);
   $("#mini").classList.add("on");
@@ -1067,12 +1089,20 @@ $("#eReset").onclick=async ()=>{ const t=S.tracks.get(S.current); t.bpmUser=null
 function download(name, text, type){ const a=document.createElement("a"); a.href=URL.createObjectURL(new Blob([text],{type})); a.download=name; document.body.appendChild(a); a.click(); setTimeout(()=>{URL.revokeObjectURL(a.href); a.remove();},500); }
 $("#expJson").onclick=()=>{ const data={app:"dj-library",version:1,exportedAt:new Date().toISOString(),root:S.rootName,tracks:[...S.tracks.values()].map(({cover,...t})=>t)}; download("dj-library-data.json", JSON.stringify(data), "application/json"); };
 $("#impJson").onclick=()=>$("#impFile").click();
+async function mergeData(data){
+  let n=0;
+  for (const t of (data && data.tracks) || []){
+    const ex=S.tracks.get(t.id);
+    if (ex && ex.analyzed && (ex.av||1)>=2 && (ex.analyzedAt||0)>=(t.analyzedAt||0)) continue;
+    const merged = ex ? {...ex, ...t, ...(ex.cover?{cover:ex.cover}:{}), missing:ex.missing} : {...t, missing:true};
+    S.tracks.set(t.id, merged); await DB.put(merged); n++;
+  }
+  return n;
+}
 $("#impFile").addEventListener("change", async (e)=>{
   const f=e.target.files[0]; if(!f) return;
-  try{ const data=JSON.parse(await f.text()); let n=0;
-    for (const t of data.tracks||[]){ const ex=S.tracks.get(t.id); const merged = ex ? {...t, ...(ex.cover?{cover:ex.cover}:{}), missing:ex.missing} : {...t, missing:true}; S.tracks.set(t.id, merged); await DB.put(merged); n++; }
-    toast("Загружено записей: "+n); renderAll();
-  }catch(err){ toast("Не получилось прочитать файл"); }
+  try{ const n=await mergeData(JSON.parse(await f.text())); toast("Загружено записей: "+n); renderAll(); }
+  catch(err){ toast("Не получилось прочитать файл"); }
   e.target.value="";
 });
 $("#expCsv").onclick=()=>{ const rows=[["Папка","Артист","Название","BPM","Тональность","Ключ","Длительность","Файл"]];
@@ -1188,11 +1218,99 @@ async function resumeOrPick(){
   }
   pickFolder();
 }
+/* =====================================================================
+   Google Drive (folder shared by link + API key) — read-only
+   ===================================================================== */
+const CLOUD = { cfg:null };
+const mediaUrl=(id)=>`https://www.googleapis.com/drive/v3/files/${encodeURIComponent(id)}?alt=media&key=${encodeURIComponent(CLOUD.cfg.key)}`;
+function driveFolderId(link){
+  link=(link||"").trim();
+  const m=link.match(/folders\/([A-Za-z0-9_-]{10,})/) || link.match(/[?&]id=([A-Za-z0-9_-]{10,})/);
+  return m ? m[1] : (/^[A-Za-z0-9_-]{20,}$/.test(link) ? link : null);
+}
+async function gdrive(path, params){
+  const u=new URL("https://www.googleapis.com/drive/v3/"+path);
+  for (const k in params) u.searchParams.set(k, params[k]);
+  u.searchParams.set("key", CLOUD.cfg.key);
+  const r=await fetch(u);
+  if (!r.ok){ let m=""; try{ m=(await r.json()).error.message; }catch(e){} const err=new Error(m||("HTTP "+r.status)); err.status=r.status; throw err; }
+  return r.json();
+}
+async function driveList(folderId, prefix, out, dataFiles, depth=0){
+  let pageToken="";
+  do{
+    const q={q:`'${folderId}' in parents and trashed=false`, fields:"nextPageToken,files(id,name,mimeType,size,modifiedTime)", pageSize:"1000", supportsAllDrives:"true", includeItemsFromAllDrives:"true"};
+    if (pageToken) q.pageToken=pageToken;
+    const res=await gdrive("files", q);
+    for (const f of res.files||[]){
+      if (f.mimeType==="application/vnd.google-apps.folder"){ if (depth<6) await driveList(f.id, prefix+"/"+f.name, out, dataFiles, depth+1); }
+      else if (isAudio(f.name)) out.push({path:prefix+"/"+f.name, drive:f.id, size:+f.size||0, mtime:Date.parse(f.modifiedTime)||0});
+      else if (depth===0 && /^dj-library-data.*\.json$/i.test(f.name)) dataFiles.push(f);
+    }
+    pageToken=res.nextPageToken||"";
+  } while(pageToken);
+}
+function setCloudState(text, on){
+  $("#cloudState").textContent=text;
+  const b=$("#cloudBadge"); b.textContent=on?"вкл":"выкл";
+  b.style.cssText = on ? "color:#C6F432;background:rgba(198,244,50,.14)" : "color:#9AA0AA;background:#1d2026";
+}
+async function loadCloud(){
+  if (!CLOUD.cfg) return;
+  setCloudState("Читаю Google Диск…", true);
+  try{
+    const meta=await gdrive("files/"+CLOUD.cfg.folderId, {fields:"id,name,mimeType", supportsAllDrives:"true"});
+    if (meta.mimeType!=="application/vnd.google-apps.folder") throw Object.assign(new Error("Это не папка"),{status:400});
+    const out=[], dataFiles=[];
+    await driveList(CLOUD.cfg.folderId, meta.name, out, dataFiles);
+    for (const df of dataFiles){
+      try{ const r=await fetch(mediaUrl(df.id)); if (r.ok){ const n=await mergeData(await r.json()); if (n) toast("Подхватил готовый анализ: "+n+" треков"); } }catch(e){}
+    }
+    S.rootName=meta.name; await DB.setMeta("rootName", meta.name);
+    const rb=$("#reconnect"); if (rb) rb.remove();
+    await ingest(out);
+    setCloudState(`Папка «${meta.name}» · ${out.length} ${plural(out.length,"трек","трека","треков")}`, true);
+  }catch(e){
+    console.warn(e);
+    const msg = e.status===404 ? "Папка не найдена или не открыта «по ссылке»" : e.status===403 || e.status===400 ? "Ключ не подходит или Drive API не включён" : "Нет связи с Google Диском";
+    setCloudState(msg, false); toast(msg);
+  }
+}
+async function saveCloud(cfg){ CLOUD.cfg=cfg; await DB.setMeta("cloud", cfg); }
+$("#cSave").onclick=async ()=>{
+  const id=driveFolderId($("#cLink").value), key=$("#cKey").value.trim();
+  if (!id){ toast("Вставь ссылку именно на папку (…/folders/…)"); return; }
+  if (!/^AIza[0-9A-Za-z_-]{20,}$/.test(key)){ toast("Ключ должен начинаться с AIza…"); return; }
+  await saveCloud({folderId:id, key, link:$("#cLink").value.trim()}); await loadCloud();
+};
+$("#cRefresh").onclick=()=>{ if (CLOUD.cfg) loadCloud(); else toast("Сначала подключи Google Диск"); };
+$("#cOff").onclick=async ()=>{ CLOUD.cfg=null; await DB.setMeta("cloud", null); $("#cKey").value=""; setCloudState("Не подключён", false); toast("Google Диск отключён"); };
+$("#cPhone").onclick=async ()=>{
+  if (!CLOUD.cfg){ toast("Сначала подключи Google Диск"); return; }
+  const code=btoa(unescape(encodeURIComponent(JSON.stringify({f:CLOUD.cfg.folderId,k:CLOUD.cfg.key}))));
+  const url=location.origin+location.pathname+"?c="+encodeURIComponent(code);
+  try{ await navigator.clipboard.writeText(url); toast("Ссылка скопирована — открой её на телефоне или вставь в бота"); }
+  catch(e){ prompt("Скопируй ссылку:", url); }
+};
+function cloudFromUrl(){
+  try{
+    const sp=new URLSearchParams(location.search); const c=sp.get("c"); if(!c) return null;
+    const o=JSON.parse(decodeURIComponent(escape(atob(c))));
+    return (o.f && o.k) ? {folderId:o.f, key:o.k} : null;
+  }catch(e){ return null; }
+}
+
 (async function start(){
   try{ await DB.open(); for (const t of await DB.all()){ t.missing=true; S.tracks.set(t.id,t); } }catch(e){ console.warn(e); }
   S.rootName = (await DB.getMeta("rootName").catch(()=>null)) || "";
   const pr = await DB.getMeta("profile"); if (pr) Object.assign(P, pr); else P.lastLevel = levelOf(stats().xp);
+  // Google Drive config: from a "phone link" (?c=...) or saved earlier
+  const fromUrl = cloudFromUrl();
+  if (fromUrl){ await saveCloud({...fromUrl, link:"https://drive.google.com/drive/folders/"+fromUrl.folderId}); }
+  else { const c=await DB.getMeta("cloud"); if (c && c.folderId && c.key) CLOUD.cfg=c; }
+  if (CLOUD.cfg){ $("#cLink").value=CLOUD.cfg.link||""; $("#cKey").value=CLOUD.cfg.key; }
   renderAll();
+  if (CLOUD.cfg){ for (const t of S.tracks.values()) t.missing=false; renderAll(); loadCloud(); return; }
   // tracks from previous sessions are visible as "missing" until the folder is opened again
   const known=[...S.tracks.values()];
   if (known.length){
