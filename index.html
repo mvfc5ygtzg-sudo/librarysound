@@ -325,7 +325,7 @@ nav.tabs button.on{color:var(--acc);font-weight:600}
         <button class="ghost" id="expCsv">Таблица (CSV)</button>
         <input type="file" id="impFile" accept=".json,application/json" style="display:none">
       </div>
-      <span class="dim" style="font-size:12px">Версия приложения: <b id="appVer">2026-11-16 · 12</b></span>
+      <span class="dim" style="font-size:12px">Версия приложения: <b id="appVer">2026-11-16 · 13</b></span>
       <span class="dim" style="font-size:13px;line-height:1.5">«Данные библиотеки» — это BPM, тональности и твои исправления. Сами треки в этот файл не входят. Сохрани его рядом с музыкой в облаке.</span>
     </div>
   </section>
@@ -1206,7 +1206,7 @@ $("#tPlay").onclick=async ()=>{ if (S.playingId===S.current) togglePlay(); else 
 /* =====================================================================
    Stems (Demucs HTDemucs v4 in the browser via onnxruntime-web; audio stays on this device)
    ===================================================================== */
-const ORT_V="1.19.2";
+const ORT_V="1.31.1";
 const STEM_DEF=[["vocals","Вокал","#3DFF7A"],["drums","Ударные","#FF2D45"],["bass","Бас","#FFB020"],["other","Остальное","#5AAEFF"]];
 const STEMS={proc:null, loading:null, cache:new Map(), id:null, bufs:null, srcs:null, gains:null, playing:false, startAt:0, offset:0, mute:{}, solo:null, vol:{vocals:1,drums:1,bass:1,other:1}, raf:0};
 async function fetchWithProgress(url, onP){
@@ -1220,7 +1220,7 @@ async function loadDemucs(onDl){
   if (!STEMS.loading) STEMS.loading=(async()=>{
     const ort=await import(`https://cdn.jsdelivr.net/npm/onnxruntime-web@${ORT_V}/dist/ort.webgpu.min.mjs`);
     ort.env.wasm.wasmPaths=`https://cdn.jsdelivr.net/npm/onnxruntime-web@${ORT_V}/dist/`;
-    if (!self.crossOriginIsolated) ort.env.wasm.numThreads=1;
+    ort.env.wasm.numThreads = self.crossOriginIsolated ? Math.min(4, navigator.hardwareConcurrency||2) : 1;
     const {DemucsProcessor, CONSTANTS}=await import("https://esm.sh/demucs-web");
     const ep=("gpu" in navigator) ? ["webgpu","wasm"] : ["wasm"];
     const proc=new DemucsProcessor({ort, sessionOptions:{executionProviders:ep, graphOptimizationLevel:"all"}, onProgress:(p)=>{ STEMS.onProg && STEMS.onProg(p.progress); }});
@@ -1799,7 +1799,7 @@ function cloudFromUrl(){
   }catch(e){ return null; }
 }
 
-const APP_VER = "2026-11-16 · 12";
+const APP_VER = "2026-11-16 · 13";
 (async function checkUpdate(){
   try{
     if (location.protocol!=="https:") return;
