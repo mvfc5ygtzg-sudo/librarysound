@@ -80,7 +80,7 @@ select.pill{appearance:none;-webkit-appearance:none;padding-right:12px}
 .prog>div{height:4px;border-radius:2px;background:var(--acc);width:0}
 .play{width:44px;height:44px;border-radius:22px;border:none;background:var(--text);color:#0B0C0F;display:flex;align-items:center;justify-content:center;flex:none}
 nav.tabs{position:fixed;left:50%;transform:translateX(-50%);bottom:0;width:min(760px,100%);height:76px;border-top:1px solid #1C1F25;background:rgba(11,12,15,.96);backdrop-filter:blur(10px);display:flex;justify-content:space-around;align-items:center;padding-bottom:env(safe-area-inset-bottom);z-index:6}
-nav.tabs button{display:flex;flex-direction:column;align-items:center;gap:4px;color:var(--muted);background:none;border:none;font-size:12px;font-weight:500;min-width:72px;padding:6px}
+nav.tabs button{display:flex;flex-direction:column;align-items:center;gap:4px;color:var(--muted);background:none;border:none;font-size:11px;font-weight:500;min-width:56px;padding:6px 2px}
 nav.tabs button.on{color:var(--acc);font-weight:600}
 .grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;padding:0 16px}
 @media(min-width:620px){.grid2{grid-template-columns:repeat(3,minmax(0,1fr))}}
@@ -94,6 +94,15 @@ nav.tabs button.on{color:var(--acc);font-weight:600}
 .pane{padding:0 16px;display:flex;flex-direction:column;gap:14px}
 .drop.over{border-color:var(--acc);background:#1A2108}
 html.tg-mode .no-tg{display:none!important}
+.qitem,.pcard,.note,.empty,.toast,.dim{overflow-wrap:anywhere;word-break:break-word;min-width:0}
+.toast{max-width:calc(100vw - 32px);text-align:center}
+.qitem span,.pcard span,.note span{max-width:100%}
+.badrow{display:flex;align-items:center;gap:8px;justify-content:space-between}
+.badrow span{flex:1;min-width:0}
+.tap{width:min(78vw,300px);aspect-ratio:1;border-radius:50%;border:2px solid var(--acc-line);background:radial-gradient(circle,#1A2108 0%,#0f1306 70%);color:var(--text);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;margin:8px auto;touch-action:manipulation;user-select:none;-webkit-user-select:none;transition:transform .08s,border-color .2s}
+.tap:active,.tap.hit{transform:scale(.96);border-color:var(--acc)}
+.tap b{font-size:64px;font-family:var(--head);line-height:1;color:var(--acc)}
+.bigval{font-size:44px;font-family:var(--head);font-weight:700;line-height:1}
 .drop{height:160px;border-radius:24px;border:2px dashed var(--acc-line);background:#12160A;color:var(--text);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;width:100%}
 .qitem{padding:12px 14px;border-radius:16px;background:var(--card);border:1px solid var(--line);display:flex;flex-direction:column;gap:8px}
 .badge{font-family:var(--mono);font-size:12px;font-weight:700;padding:3px 8px;border-radius:8px;white-space:nowrap}
@@ -292,6 +301,35 @@ html.tg-mode .no-tg{display:none!important}
     </div>
   </section>
 
+  <!-- ============ BPM / KEY TOOLS ============ -->
+  <section class="view" id="v-bpm" aria-label="BPM">
+    <div class="top"><div style="display:flex;flex-direction:column;gap:4px"><span class="eyebrow">Инструменты</span><h1>BPM и тональность</h1></div></div>
+    <div class="pane">
+      <div class="pcard" style="gap:8px;align-items:center">
+        <b style="font-size:16px;align-self:flex-start">Тап-темп</b>
+        <span class="dim" style="font-size:13px;align-self:flex-start">Стучи по кругу в такт бочке — BPM посчитается сам. Пауза 2 секунды = начать заново.</span>
+        <button class="tap" id="tapPad" aria-label="Стучать в такт"><b id="tapBpm">—</b><span class="dim" id="tapInfo" style="font-size:13px">Нажми в такт</span></button>
+        <div class="row" style="gap:8px;flex-wrap:wrap;justify-content:center">
+          <button class="ghost" id="tapHalf" style="height:42px">÷2</button><button class="ghost" id="tapDouble" style="height:42px">×2</button>
+          <button class="ghost" id="tapReset" style="height:42px">Сброс</button><button class="big" id="tapFind" style="height:42px">Треки с этим BPM</button>
+        </div>
+      </div>
+      <div class="pcard" style="gap:10px">
+        <b style="font-size:16px">Узнать BPM и тональность на слух</b>
+        <span class="dim" style="font-size:13px;line-height:1.5">Поднеси телефон к колонке — приложение послушает 15 секунд через микрофон и определит темп и тональность. Лучше на дропе, где есть бочка и бас.</span>
+        <button class="big" id="micGo" style="height:50px">🎙 Слушать 15 секунд</button>
+        <div style="height:6px;border-radius:3px;background:#1d2026;overflow:hidden;display:none" id="micBarWrap"><div id="micBar" style="height:100%;width:0;background:var(--acc)"></div></div>
+        <span class="dim" id="micState" style="font-size:13px"></span>
+        <div id="micRes" style="display:none;flex-direction:column;gap:10px">
+          <div class="row" style="gap:20px;align-items:flex-end"><div style="display:flex;flex-direction:column;gap:2px"><span class="eyebrow">BPM</span><span class="bigval" id="micBpm">—</span></div><div style="display:flex;flex-direction:column;gap:2px"><span class="eyebrow">Тональность</span><span class="bigval" id="micKey">—</span></div></div>
+          <span class="dim" id="micKeyName" style="font-size:13px"></span>
+          <span class="dim" id="micCompat" style="font-size:13px"></span>
+          <button class="ghost" id="micFind" style="height:44px;align-self:flex-start">Подобрать треки из библиотеки</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <!-- ============ ADD / BACKUP ============ -->
   <section class="view" id="v-add" aria-label="Добавить">
     <div class="top">
@@ -362,7 +400,7 @@ html.tg-mode .no-tg{display:none!important}
         <button class="ghost" id="freeBtn">Очистить память</button>
         <input type="file" id="impFile" accept=".json,application/json" style="display:none">
       </div>
-      <span class="dim" style="font-size:12px">Версия приложения: <b id="appVer">2026-11-16 · 23</b></span>
+      <span class="dim" style="font-size:12px">Версия приложения: <b id="appVer">2026-11-16 · 24</b></span>
       <span class="dim" style="font-size:13px;line-height:1.5">«Данные библиотеки» — это BPM, тональности и твои исправления. Сами треки в этот файл не входят. Сохрани его рядом с музыкой в облаке.</span>
     </div>
   </section>
@@ -418,6 +456,7 @@ html.tg-mode .no-tg{display:none!important}
 
   <nav class="tabs">
     <button data-tab="lib" class="on"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/></svg>Треки</button>
+    <button data-tab="bpm"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 12h3l3-7 4 14 3-7h5"/></svg>BPM</button>
     <button data-tab="folders"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>Папки</button>
     <button data-tab="profile"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>Профиль</button>
     <button data-tab="add"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Добавить</button>
@@ -1168,7 +1207,7 @@ function renderQueue(){
     html+=`<div class="qitem"><div class="row between"><b style="font-size:15px">Анализ: ${done} из ${total}</b><span class="badge" style="color:#B9C2FF;background:rgba(124,139,255,.16)">${pct}%</span></div><div class="prog"><div style="width:${pct}%;background:#7C8BFF"></div></div><span style="font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${cur?"Сейчас: "+esc(cur.fname):""}</span></div>`;
   }
   if (all.length) html+=`<div class="qitem"><div class="row between"><b style="font-size:15px">В библиотеке: ${all.length}</b><span class="badge" style="color:#C6F432;background:rgba(198,244,50,.14)">готово ${ok}</span></div><span style="font-size:12px;color:var(--muted)">Анализ сохраняется — при следующем открытии повторять не нужно.</span></div>`;
-  if (bad.length) html+=`<div class="qitem"><b style="font-size:14px;color:#ffb4a8">Не удалось прочитать: ${bad.length}</b><span style="font-size:12px;color:var(--muted)">${bad.slice(0,4).map(t=>esc(t.fname)+(t.err?` — <span style="color:#ffb4a8">${esc(String(t.err).slice(0,90))}</span>`:"")).join("<br>")}${bad.length>4?"<br>…":""}</span><span style="font-size:12px;color:var(--muted)">Сам файл не повреждён. Пришли этот текст ошибки — разберусь.</span></div>`;
+  if (bad.length) html+=`<div class="qitem"><div class="row between"><b style="font-size:14px;color:#ffb4a8">Не удалось прочитать: ${bad.length}</b><button class="smallbtn" data-badall="1">Убрать все</button></div>${bad.slice(0,8).map(t=>`<div class="badrow"><span style="font-size:12px;color:var(--muted)">${esc(t.fname)}${t.err?` — <span style="color:#ffb4a8">${esc(String(t.err).slice(0,90))}</span>`:""}</span><button class="smallbtn" data-retry="${esc(t.id)}">Ещё раз</button><button class="smallbtn" data-bad="${esc(t.id)}">Убрать</button></div>`).join("")}${bad.length>8?`<span style="font-size:12px;color:var(--muted)">…и ещё ${bad.length-8}</span>`:""}</div>`;
   box.innerHTML=html;
   $("#pickLabel").textContent = S.rootName ? "Обновить / выбрать другую папку" : "Выбрать папку с музыкой";
 }
@@ -2217,7 +2256,7 @@ function cloudFromUrl(){
   }catch(e){ return null; }
 }
 
-const APP_VER = "2026-11-16 · 23";
+const APP_VER = "2026-11-16 · 24";
 (async function checkUpdate(){
   try{
     if (location.protocol!=="https:") return;
@@ -2270,6 +2309,76 @@ function showReconnect(){
   $("#v-lib .top").after(b);
   $("#reBtn").onclick=async()=>{ b.remove(); await resumeOrPick(); };
 }
+/* ---------- failed tracks: retry / remove ---------- */
+async function removeTrack(id){
+  const t=S.tracks.get(id); if(!t) return; const sr=S.files.get(id);
+  if (sr && sr.tg){ try{ await fetch(`${TGS.server}/api/track/${sr.tg}?auth=${encodeURIComponent(TGS.initData)}`, {method:"DELETE"}); }catch(e){} }
+  if (window.TG_MODE || sr && sr.tg){ S.tracks.delete(id); S.files.delete(id); await DB.del(id); }
+  else { t.hidden=true; t.editedAt=Date.now(); await DB.put(t); }
+}
+document.addEventListener("click", async (e)=>{
+  const b=e.target.closest("[data-bad],[data-badall],[data-retry]"); if(!b) return; e.stopPropagation();
+  if (b.dataset.retry){ const t=S.tracks.get(b.dataset.retry); if(t){ t.failed=false; t.err=""; t.big=false; S.queue.push(t.id); S.total++; runQueue(); } }
+  else if (b.dataset.badall){ for (const t of [...S.tracks.values()].filter(t=>t.failed)) await removeTrack(t.id); toast("Убрано"); }
+  else { await removeTrack(b.dataset.bad); toast("Трек убран"); }
+  renderAll();
+}, true);
+/* ---------- tap tempo ---------- */
+const TAP={times:[], bpm:null};
+function tapShow(){ $("#tapBpm").textContent = TAP.bpm ? TAP.bpm.toFixed(1) : "—"; $("#tapInfo").textContent = TAP.times.length<2 ? (TAP.times.length?"ещё…":"Нажми в такт") : `${TAP.times.length} ${plural(TAP.times.length,"удар","удара","ударов")}`; }
+function tapHit(){
+  const now=performance.now(); if (TAP.times.length && now-TAP.times[TAP.times.length-1]>2000) TAP.times=[];
+  TAP.times.push(now); if (TAP.times.length>24) TAP.times.shift();
+  if (TAP.times.length>=2){ const n=TAP.times.length-1; TAP.bpm=60000*n/(TAP.times[n]-TAP.times[0]); }
+  const p=$("#tapPad"); p.classList.add("hit"); setTimeout(()=>p.classList.remove("hit"),90);
+  try{ navigator.vibrate && navigator.vibrate(8); }catch(e){} try{ Telegram.WebApp.HapticFeedback.impactOccurred("light"); }catch(e){}
+  tapShow();
+}
+$("#tapPad").addEventListener("pointerdown", (e)=>{ e.preventDefault(); tapHit(); });
+$("#tapReset").onclick=()=>{ TAP.times=[]; TAP.bpm=null; tapShow(); };
+$("#tapHalf").onclick=()=>{ if(TAP.bpm){ TAP.bpm/=2; TAP.times=[]; tapShow(); } };
+$("#tapDouble").onclick=()=>{ if(TAP.bpm){ TAP.bpm*=2; TAP.times=[]; tapShow(); } };
+function findByBpm(bpm, key){
+  if (!bpm && !key) return; S.q=""; $("#q").value=""; S.folder="Все";
+  if (bpm){ S.bpmMin=Math.round(bpm-3); S.bpmMax=Math.round(bpm+3); S.bpmHalf=true; } else { S.bpmMin=S.bpmMax=null; }
+  S.keyF=key||null; S.keyCompat=!!key; renderPills(); renderChips(); renderList(); lastTab="lib"; show("lib");
+  const n=visibleTracks().length; toast(n ? `Подходит треков: ${n}` : "В библиотеке таких пока нет");
+}
+$("#tapFind").onclick=()=>{ if (!TAP.bpm){ toast("Сначала настучи темп"); return; } findByBpm(TAP.bpm, null); };
+/* ---------- listen through the microphone: BPM + key ---------- */
+const MIC={busy:false, bpm:null, key:null};
+$("#micGo").onclick=async ()=>{
+  if (MIC.busy) return; MIC.busy=true; const st=$("#micState"), btn=$("#micGo");
+  let stream=null, ctx=null;
+  try{
+    st.textContent="Разреши доступ к микрофону…";
+    stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false, noiseSuppression:false, autoGainControl:false}});
+    const AC=window.AudioContext||window.webkitAudioContext; ctx=new AC(); await ctx.resume();
+    const src=ctx.createMediaStreamSource(stream), proc=ctx.createScriptProcessor(4096,1,1), chunks=[]; const SEC=15, sr=ctx.sampleRate;
+    proc.onaudioprocess=(ev)=>{ chunks.push(new Float32Array(ev.inputBuffer.getChannelData(0))); };
+    src.connect(proc); proc.connect(ctx.destination);
+    btn.disabled=true; $("#micBarWrap").style.display="block"; $("#micRes").style.display="none";
+    const t0=performance.now();
+    await new Promise(res=>{ const tick=()=>{ const el=(performance.now()-t0)/1000; $("#micBar").style.width=Math.min(100,el/SEC*100)+"%"; st.textContent=`Слушаю… ${Math.max(0,Math.ceil(SEC-el))} с`; if (el>=SEC) res(); else setTimeout(tick,200); }; tick(); });
+    proc.disconnect(); src.disconnect(); stream.getTracks().forEach(t=>t.stop()); stream=null;
+    st.textContent="Анализирую…"; await new Promise(r=>setTimeout(r,30));
+    let len=0; for (const c of chunks) len+=c.length; const all=new Float32Array(len); let o=0; for (const c of chunks){ all.set(c,o); o+=c.length; }
+    const step=sr/11025, outLen=Math.floor(len/step), x=new Float32Array(outLen);
+    for (let i=0;i<outLen;i++){ const a=Math.floor(i*step), b=Math.min(len,Math.floor((i+1)*step)); let s=0; for (let j=a;j<b;j++) s+=all[j]; x[i]=s/Math.max(1,b-a); }
+    let peak=0; for (let i=0;i<outLen;i++) peak=Math.max(peak,Math.abs(x[i]));
+    if (peak<0.003) throw new Error("Слишком тихо — поднеси телефон ближе к колонке");
+    const r=detectBpm(x, 11025), k=detectKey(x, 11025);
+    MIC.bpm=r?r.bpm:null; MIC.key=k||null;
+    $("#micBpm").textContent=MIC.bpm?bpmText(MIC.bpm):"—"; $("#micKey").textContent=MIC.key||"—"; $("#micKey").setAttribute("style", keyBadgeStyle(MIC.key)+";padding:2px 10px;border-radius:12px");
+    $("#micKeyName").textContent = MIC.key ? (CAMELOT_NAME[MIC.key]||"") : "Тональность не определилась — попробуй на другом месте трека";
+    $("#micCompat").textContent = MIC.key ? "Сводится с: "+compatKeys(MIC.key).join(", ") : "";
+    $("#micRes").style.display="flex"; st.textContent="Готово. Результат по 15 секундам — на длинном треке точность выше.";
+  }catch(e){
+    const m = e && (e.name==="NotAllowedError"||e.name==="SecurityError") ? "Нет доступа к микрофону. Разреши его для Telegram в настройках телефона и попробуй снова." : (e && e.name==="NotFoundError") ? "Микрофон не найден" : (e && e.message || String(e));
+    st.textContent=m;
+  }finally{ try{ stream && stream.getTracks().forEach(t=>t.stop()); }catch(e){} try{ ctx && ctx.close(); }catch(e){} MIC.busy=false; btn.disabled=false; $("#micBarWrap").style.display="none"; }
+};
+$("#micFind").onclick=()=>findByBpm(MIC.bpm, MIC.key);
 window.__dj = {S, DB, detectBpm, detectKey, analyzeFile, ingest, parseKeyTag, camelot};
 </script>
 </body>
