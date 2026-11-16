@@ -87,7 +87,7 @@ nav.tabs button.on svg{transform:translateY(-2px) scale(1.12)}
 nav.tabs button.hov{color:var(--text)}
 nav.tabs button.hov svg{transform:scale(1.25)}
 nav.tabs{touch-action:none}
-nav.tabs .tabind{position:absolute;top:8px;left:0;height:46px;border-radius:16px;background:rgba(198,244,50,.10);border:1px solid rgba(198,244,50,.22);transition:transform .32s cubic-bezier(.3,1.3,.5,1),width .32s;pointer-events:none}
+nav.tabs .tabind{position:absolute;top:6px;left:0;height:60px;border-radius:16px;background:rgba(198,244,50,.10);border:1px solid rgba(198,244,50,.22);transition:transform .32s cubic-bezier(.3,1.3,.5,1),width .32s;pointer-events:none}
 .grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;padding:0 16px}
 @media(min-width:620px){.grid2{grid-template-columns:repeat(3,minmax(0,1fr))}}
 .fcard{display:flex;flex-direction:column;gap:6px;padding:16px;border-radius:20px;background:var(--card);border:1px solid var(--line);min-height:150px;text-align:left;color:var(--text)}
@@ -126,6 +126,12 @@ html.tg-mode .no-tg{display:none!important}
 .legend{display:flex;gap:10px;flex-wrap:wrap;font-size:11px;color:var(--muted)}
 .legend i{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:5px;vertical-align:0}
 .zbtn{width:34px;height:34px;border-radius:10px;border:1px solid var(--line2);background:#14161B;color:var(--text);font-size:18px;line-height:1}
+.fadd{position:absolute;top:10px;right:52px;width:36px;height:36px;border-radius:10px;border:1px solid var(--acc-line);background:#1A2108;color:var(--acc);display:flex;align-items:center;justify-content:center;z-index:2;font-size:22px;font-weight:600;line-height:1}
+.pick{display:flex;align-items:center;gap:10px;padding:10px;border-radius:12px;background:var(--card);border:1px solid var(--line);color:var(--text);text-align:left;width:100%}
+.pick.on{border-color:var(--acc);background:#151a0a}
+.pick .ck{width:22px;height:22px;border-radius:7px;border:2px solid var(--line2);flex:none;display:flex;align-items:center;justify-content:center;color:#0B0C0F;font-size:14px;font-weight:800}
+.pick.on .ck{background:var(--acc);border-color:var(--acc)}
+.pick .pm{flex:1;min-width:0;display:flex;flex-direction:column}.pick .pm b{font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.pick .pm span{font-size:12px;color:var(--muted)}
 .fdel{position:absolute;top:10px;right:10px;width:36px;height:36px;border-radius:10px;border:1px solid var(--line2);background:#1a1d23;color:#ff8a92;display:flex;align-items:center;justify-content:center;z-index:2}
 .dangerbtn{height:52px;padding:0 20px;border-radius:16px;border:none;background:#FF3B4E;color:#fff;font-size:16px;font-weight:700}
 .avbtn{width:44px;height:44px;border-radius:22px;border:2px solid var(--acc);background:#1b1e24;padding:0;overflow:hidden;flex:none;display:flex;align-items:center;justify-content:center}
@@ -237,7 +243,7 @@ html.tg-mode .no-tg{display:none!important}
     <div class="pane" style="padding-top:16px">
       <div class="row between">
         <button class="iconbtn" id="backBtn" aria-label="Назад"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg></button>
-        <span class="eyebrow" id="tFolder"></span>
+        <button class="eyebrow" id="tFolder" style="background:#1a1d23;border:1px solid var(--line2);border-radius:10px;padding:6px 10px;color:var(--soft);max-width:55%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" aria-label="Сменить папку"></button>
         <button class="iconbtn" id="editBtn" aria-label="Исправить BPM или тональность"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></button>
       </div>
       <div class="hero" id="tHero"></div>
@@ -276,6 +282,7 @@ html.tg-mode .no-tg{display:none!important}
       <div class="row" style="gap:10px">
         <button class="big" id="tPlay" style="flex:1"></button>
         <button class="ghost" id="tReveal" style="flex:1" title="Где лежит файл">Файл</button>
+        <button class="ghost" id="tReanalyze" style="flex:none;width:52px;padding:0;font-size:20px" aria-label="Проанализировать заново" title="Проанализировать заново">↻</button>
         <button class="ghost" id="tDelete" aria-label="Удалить трек" style="color:#ff8a92;flex:none;width:52px;padding:0"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg></button>
       </div>
       <div class="dim" id="tPath" style="font-size:12px;word-break:break-all;display:none"></div>
@@ -303,7 +310,7 @@ html.tg-mode .no-tg{display:none!important}
     <div class="grid2" id="folderGrid"></div>
     <div class="note">
       <svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#C6F432" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6z"/><path d="m9 12 2 2 4-4"/></svg>
-      <div style="display:flex;flex-direction:column;gap:2px"><b>Файлы треков не изменяются</b><span>Приложение только читает их. Папки — это папки на твоём Mac.</span></div>
+      <div style="display:flex;flex-direction:column;gap:2px"><b>Файлы треков не изменяются</b><span>Приложение только читает их. Папки можно создавать здесь и собирать в них любые треки — кнопка «+» на папке.</span></div>
     </div>
   </section>
 
@@ -372,6 +379,7 @@ html.tg-mode .no-tg{display:none!important}
         <div id="upBox" style="display:none;flex-direction:column;gap:6px"><div class="row between"><b id="upName" style="font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:75%"></b><span class="badge" id="upPct" style="color:#C6F432;background:rgba(198,244,50,.14)">0%</span></div><div style="height:6px;border-radius:3px;background:#1d2026;overflow:hidden"><div id="upBar" style="height:100%;width:0;background:var(--acc);transition:width .3s"></div></div></div>
       </div>
       <div id="queueBox" style="display:flex;flex-direction:column;gap:10px"></div>
+      <div class="pcard row" style="gap:12px"><div style="flex:1;display:flex;flex-direction:column;gap:2px"><b style="font-size:15px">Переанализ</b><span class="dim" style="font-size:12px">Заново определить BPM, тональность и сетку у всех треков. Ручные правки сбросятся.</span></div><button class="smallbtn" id="reAll">↻ Все треки</button></div>
       <span class="eyebrow no-tg" style="margin-top:8px">Google Диск</span>
       <div class="pcard no-tg" style="gap:10px">
         <div class="row between"><b id="cloudState" style="font-size:15px">Не подключён</b><span class="badge" id="cloudBadge" style="color:#9AA0AA;background:#1d2026">выкл</span></div>
@@ -406,7 +414,7 @@ html.tg-mode .no-tg{display:none!important}
         <button class="ghost" id="freeBtn">Очистить память</button>
         <input type="file" id="impFile" accept=".json,application/json" style="display:none">
       </div>
-      <span class="dim" style="font-size:12px">Версия приложения: <b id="appVer">2026-11-16 · 25</b></span>
+      <span class="dim" style="font-size:12px">Версия приложения: <b id="appVer">2026-11-16 · 26</b></span>
       <span class="dim" style="font-size:13px;line-height:1.5">«Данные библиотеки» — это BPM, тональности и твои исправления. Сами треки в этот файл не входят. Сохрани его рядом с музыкой в облаке.</span>
     </div>
   </section>
@@ -487,6 +495,13 @@ html.tg-mode .no-tg{display:none!important}
   <span class="dim" style="font-size:14px;line-height:1.5" id="delText"></span>
   <label style="display:none;gap:8px;align-items:flex-start;color:var(--soft);font-size:14px;line-height:1.4" id="delDriveRow"><input type="checkbox" id="delDrive" style="width:20px;height:20px;flex:none"> Удалить и с Google Диска — файл попадёт в корзину Диска, его можно восстановить 30 дней</label>
   <div class="row"><button class="dangerbtn" id="delOk" style="flex:1">Удалить</button><button class="ghost" id="delCancel">Отмена</button></div>
+</div></div>
+<div class="sheet" id="fSheet"><div class="box" style="max-height:82vh">
+  <div class="row between"><b style="font-size:18px" id="fTitle">Папка</b><button class="smallbtn" id="fClose">Готово</button></div>
+  <div id="fNewRow" class="row" style="gap:8px"><input id="fName" class="nameinp" style="flex:1;height:44px;font-size:15px" placeholder="Название папки" maxlength="40"><button class="smallbtn acc" id="fCreate" style="height:44px">Создать</button></div>
+  <input id="fSearch" class="nameinp" style="height:42px;font-size:14px" placeholder="Поиск трека">
+  <div id="fList" style="overflow:auto;display:flex;flex-direction:column;gap:6px;min-height:80px;max-height:52vh"></div>
+  <button class="big" id="fApply" style="height:48px">Добавить в папку</button>
 </div></div>
 <div class="toast" id="toast"></div>
 <audio id="audio" preload="metadata"></audio>
@@ -1049,7 +1064,8 @@ async function ingest(entries, opts={}){ // entries: [{path, file|handle|drive, 
       const nm = nameFromFile(fname);
       t = {id, path:e.path, fname, folder, sub: parts.slice(1,-1).join(" / "), size:e.size, mtime:e.mtime, addedAt:Date.now(), title:nm.title, artist:nm.artist, analyzed:false};
       S.tracks.set(id,t); await DB.put(t);
-    } else if (t.folder!==folder){ t.folder=folder; t.path=e.path; await DB.put(t); }
+    } else if (t.userFolder){ if (t.folder!==t.userFolder){ t.folder=t.userFolder; await DB.put(t); } }
+    else if (t.folder!==folder){ t.folder=folder; t.path=e.path; await DB.put(t); }
     if (opts.explicit){ if (t.hidden){ t.hidden=false; t.editedAt=Date.now(); await DB.put(t); } if (S.hiddenFolders.has(t.folder)){ S.hiddenFolders.delete(t.folder); S.hiddenAt=Date.now(); await DB.setMeta("hiddenFolders",[...S.hiddenFolders]); } if (t.failed){ t.failed=false; } }
     if (t.failed && !t.big && (t.failVer||0)<DEC_VER){ t.failed=false; t.err=""; }
     if ((!t.analyzed || (t.av||1)<2) && !t.failed) S.queue.push(id);
@@ -1192,14 +1208,18 @@ function renderPills(){
 function renderFolders(){
   const groups={};
   for (const t of S.tracks.values()){ if(!isLive(t)) continue; (groups[t.folder] ||= []).push(t); }
+  for (const f of P.folders||[]) groups[f] ||= [];
   const names=Object.keys(groups).sort((a,b)=>a.localeCompare(b,"ru"));
+  const newCard=`<button class="fcard" id="fNewCard" style="border-style:dashed;align-items:center;justify-content:center;min-height:120px"><span style="font-size:30px;color:var(--acc);line-height:1">+</span><span class="fname">Новая папка</span></button>`;
+  if (!names.length && S.tracks.size){ $("#folderGrid").innerHTML=newCard; $("#fNewCard").onclick=()=>openFolderSheet(null); return; }
   if (!names.length){ $("#folderGrid").innerHTML=`<div class="empty" style="grid-column:1/-1;margin:0"><p>Папки появятся, когда выберешь папку с музыкой.</p></div>`; return; }
   $("#folderGrid").innerHTML = names.map((n,i)=>{
     const ts=groups[n], bs=ts.map(effBpm).filter(b=>b!=null);
     const lo=bs.length?Math.round(Math.min(...bs)):0, hi=bs.length?Math.round(Math.max(...bs)):0; const range = bs.length ? (lo===hi? lo : lo+"–"+hi)+" BPM" : "анализ…";
     const h=(i*47+200)%360;
-    return `<div style="position:relative"><button class="fdel" data-delfolder="${esc(n)}" aria-label="Удалить папку ${esc(n)}"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg></button><button class="fcard" style="width:100%" data-folder="${esc(n)}"><div class="ficon" style="background:hsl(${h} 70% 66%)"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0B0C0F" stroke-width="2.2" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></div><span class="fname">${esc(n)}</span><span style="font-size:13px;color:var(--muted)">${ts.length} ${plural(ts.length,"трек","трека","треков")}</span><span style="font-family:var(--mono);font-size:12px;color:var(--soft)">${range}</span></button></div>`;
-  }).join("");
+    return `<div style="position:relative"><button class="fadd" data-addto="${esc(n)}" aria-label="Добавить треки в папку ${esc(n)}">+</button><button class="fdel" data-delfolder="${esc(n)}" aria-label="Удалить папку ${esc(n)}"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg></button><button class="fcard" style="width:100%" data-folder="${esc(n)}"><div class="ficon" style="background:hsl(${h} 70% 66%)"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0B0C0F" stroke-width="2.2" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></div><span class="fname">${esc(n)}</span><span style="font-size:13px;color:var(--muted)">${ts.length} ${plural(ts.length,"трек","трека","треков")}</span><span style="font-family:var(--mono);font-size:12px;color:var(--soft)">${ts.length?range:"нажми + чтобы добавить треки"}</span></button></div>`;
+  }).join("") + newCard;
+  $("#fNewCard").onclick=()=>openFolderSheet(null);
   const hidT=[...S.tracks.values()].filter(t=>!t.missing && (t.hidden || S.hiddenFolders.has(t.folder))).length;
   if (hidT || S.hiddenFolders.size) $("#folderGrid").insertAdjacentHTML("beforeend", `<div class="pcard row" style="grid-column:1/-1;gap:12px"><span class="dim" style="flex:1;font-size:13px">Удалено из библиотеки: ${hidT} ${plural(hidT,"трек","трека","треков")}${S.hiddenFolders.size?`, папок: ${S.hiddenFolders.size}`:""}</span><button class="smallbtn" id="restoreAll">Вернуть все</button></div>`);
   const rb=$("#restoreAll"); if (rb) rb.onclick=async ()=>{ for (const t of S.tracks.values()) if (t.hidden){ t.hidden=false; await DB.put(t); } S.hiddenFolders.clear(); await DB.setMeta("hiddenFolders", []); renderAll(); toast("Всё вернул в библиотеку"); };
@@ -1223,7 +1243,7 @@ function renderQueue(){
 function renderTrack(){
   const t=S.tracks.get(S.current); if(!t) return;
   const k=effKey(t), b=effBpm(t);
-  $("#tFolder").textContent = t.sub || t.folder;
+  $("#tFolder").textContent = "📁 "+(t.userFolder || t.sub || t.folder) + " ▾";
   $("#tHero").innerHTML = t.cover ? `<img alt="" src="${t.cover}">` : `<svg aria-hidden="true" width="150" height="90" viewBox="0 0 150 90" fill="none" stroke="#0B0C0F" stroke-width="6" stroke-linecap="round"><path d="M10 38v14M28 24v42M46 8v74M64 28v34M82 16v58M100 32v26M118 20v50M136 38v14"/></svg>`;
   $("#tHero").style.background = t.cover ? "#111" : coverBg(k);
   $("#tTitle").textContent=t.title; $("#tArtist").textContent=t.artist || "Артист не указан";
@@ -1775,6 +1795,7 @@ function openDelete(kind, target){
 }
 $("#delCancel").onclick=()=>$("#delSheet").classList.remove("on");
 $("#delOk").onclick=async ()=>{
+  if (DEL.kind!=="track" && (P.folders||[]).includes(DEL.target)){ P.folders=P.folders.filter(f=>f!==DEL.target); await DB.setMeta("profile",{...P}); }
   const fromDrive = $("#delDriveRow").style.display!=="none" && $("#delDrive").checked;
   $("#delSheet").classList.remove("on");
   try{
@@ -2247,7 +2268,7 @@ async function tgPush(){
   if (!TSY.dirty || TSY.busy || !TGS.initData) return; TSY.busy=true; TSY.dirty=false;
   try{
     const tracks=[...S.tracks.values()].filter(t=>t.analyzed||t.editedAt).map(({cover,missing,peaks,x22,...t})=>({...t, wave:packWave(t.wave)}));
-    const r=await fetch(`${TGS.server}/api/state?auth=${encodeURIComponent(TGS.initData)}`, {method:"PUT", headers:{"Content-Type":"application/json"}, body:JSON.stringify({profile:{name:P.name, skin:P.skin, tone:P.tone, avatar:P.avatar, lastLevel:P.lastLevel, savedAt:P.savedAt||0}, tracks})});
+    const r=await fetch(`${TGS.server}/api/state?auth=${encodeURIComponent(TGS.initData)}`, {method:"PUT", headers:{"Content-Type":"application/json"}, body:JSON.stringify({profile:{name:P.name, skin:P.skin, tone:P.tone, avatar:P.avatar, lastLevel:P.lastLevel, folders:P.folders||[], savedAt:P.savedAt||0}, tracks})});
     if (!r.ok) TSY.dirty=true;
   }catch(e){ TSY.dirty=true; } finally { TSY.busy=false; }
 }
@@ -2314,7 +2335,7 @@ function cloudFromUrl(){
   }catch(e){ return null; }
 }
 
-const APP_VER = "2026-11-16 · 25";
+const APP_VER = "2026-11-16 · 26";
 (async function checkUpdate(){
   try{
     if (location.protocol!=="https:") return;
@@ -2458,6 +2479,61 @@ $("#micGo").onclick=async ()=>{
 };
 $("#micFind").onclick=()=>findByBpm(MIC.bpm, MIC.key);
 (function(){ const sm=DB.setMeta.bind(DB); DB.setMeta=async (k,v)=>{ if (k==="profile" && !S._merging && v){ v.savedAt=P.savedAt=Date.now(); tgDirty(); } return sm(k,v); }; })();
+/* ---------- user folders ---------- */
+const FS={target:null, sel:new Set(), single:null};
+async function moveToFolder(ids, name){
+  for (const id of ids){ const t=S.tracks.get(id); if(!t) continue; t.userFolder=name||"Без папки"; t.folder=t.userFolder; t.editedAt=Date.now(); await DB.put(t); }
+  scheduleSync(); tgDirty(); renderAll();
+}
+async function createFolder(name){
+  name=String(name||"").trim().replace(/[\/\\]/g,"-").slice(0,40); if(!name){ toast("Введи название папки"); return null; }
+  P.folders=[...new Set([...(P.folders||[]), name])]; await DB.setMeta("profile",{...P}); return name;
+}
+function renderFolderPick(){
+  const q=$("#fSearch").value.trim().toLowerCase();
+  if (FS.single){   // choose a folder for one track
+    const names=[...new Set([...[...S.tracks.values()].filter(isLive).map(t=>t.folder), ...(P.folders||[])])].sort((a,b)=>a.localeCompare(b,"ru"));
+    const cur=S.tracks.get(FS.single)?.folder;
+    $("#fList").innerHTML=names.filter(n=>!q||n.toLowerCase().includes(q)).map(n=>`<button class="pick${n===cur?" on":""}" data-pickf="${esc(n)}"><span class="ck">${n===cur?"✓":""}</span><span class="pm"><b>${esc(n)}</b></span></button>`).join("") || `<span class="dim">Папок пока нет — создай выше</span>`;
+    return;
+  }
+  const arr=[...S.tracks.values()].filter(isLive).filter(t=>!q || (t.title+" "+t.artist+" "+t.fname).toLowerCase().includes(q)).sort((a,b)=>(a.folder===FS.target)-(b.folder===FS.target) || b.addedAt-a.addedAt);
+  $("#fList").innerHTML=arr.map(t=>{ const on=FS.sel.has(t.id), inF=t.folder===FS.target; return `<button class="pick${on?" on":""}" data-pick="${esc(t.id)}" ${inF?'disabled style="opacity:.45"':""}><span class="ck">${on||inF?"✓":""}</span><span class="pm"><b>${esc(t.title)}</b><span>${esc(t.artist||"")}${inF?" · уже здесь":" · "+esc(t.folder)}</span></span><span style="font-family:var(--mono);font-size:12px;color:var(--soft)">${bpmText(effBpm(t))} ${effKey(t)||""}</span></button>`; }).join("") || `<span class="dim">Треков нет</span>`;
+  $("#fApply").textContent = FS.sel.size ? `Добавить в «${FS.target}»: ${FS.sel.size}` : "Выбери треки";
+}
+function openFolderSheet(target, single){
+  FS.target=target; FS.sel=new Set(); FS.single=single||null; $("#fSearch").value=""; $("#fName").value="";
+  $("#fTitle").textContent = single ? "Переместить в папку" : target ? `Добавить треки в «${target}»` : "Новая папка";
+  $("#fNewRow").style.display = target ? "none" : "flex";
+  $("#fSearch").style.display = (target || single) ? "" : "none"; $("#fSearch").placeholder = single ? "Поиск папки" : "Поиск трека";
+  $("#fApply").style.display = (target && !single) ? "" : "none";
+  if (target || single) renderFolderPick(); else $("#fList").innerHTML=`<span class="dim" style="font-size:13px">Придумай название — потом добавишь в папку любые треки.</span>`;
+  $("#fSheet").classList.add("on"); if (!target) setTimeout(()=>$("#fName").focus(),100);
+}
+$("#fClose").onclick=()=>$("#fSheet").classList.remove("on");
+$("#fSearch").oninput=renderFolderPick;
+$("#fCreate").onclick=async ()=>{ const n=await createFolder($("#fName").value); if(!n) return;
+  if (FS.single){ await moveToFolder([FS.single], n); $("#fSheet").classList.remove("on"); toast(`Трек в папке «${n}»`); renderTrack(); return; }
+  toast(`Папка «${n}» создана`); renderAll(); openFolderSheet(n); };
+$("#fList").addEventListener("click", async (e)=>{
+  const f=e.target.closest("[data-pickf]"); if (f){ await moveToFolder([FS.single], f.dataset.pickf); $("#fSheet").classList.remove("on"); toast(`Трек в папке «${f.dataset.pickf}»`); renderTrack(); return; }
+  const b=e.target.closest("[data-pick]"); if(!b||b.disabled) return; const id=b.dataset.pick; FS.sel.has(id)?FS.sel.delete(id):FS.sel.add(id); renderFolderPick();
+});
+$("#fApply").onclick=async ()=>{ if(!FS.sel.size){ toast("Выбери треки"); return; } const n=FS.sel.size; await moveToFolder([...FS.sel], FS.target); $("#fSheet").classList.remove("on"); toast(`Добавлено в «${FS.target}»: ${n}`); };
+document.addEventListener("click",(e)=>{ const b=e.target.closest("[data-addto]"); if (b){ e.stopPropagation(); openFolderSheet(b.dataset.addto); } }, true);
+$("#tFolder").onclick=()=>{ if (S.current){ openFolderSheet(null, S.current); $("#fNewRow").style.display="flex"; } };
+/* ---------- re-analysis ---------- */
+function askConfirm(text){ return new Promise(res=>{ try{ const w=Telegram.WebApp; if (w && w.showConfirm && w.initData){ w.showConfirm(text, ok=>res(!!ok)); return; } }catch(e){} res(window.confirm(text)); }); }
+function resetAnalysis(t){
+  t.analyzed=false; t.av=0; t.failed=false; t.err=""; delete t.bpmUser; delete t.keyUser; delete t.gridShift; delete t.barOffset; t.editedAt=Date.now();
+  S.detail.delete(t.id); for (const k of [..._wcache.keys()]) if (k.startsWith(t.id+"|")) _wcache.delete(k);
+}
+$("#tReanalyze").onclick=async ()=>{ const t=S.tracks.get(S.current); if(!t) return; if (!S.files.has(t.id)){ toast("Файл сейчас недоступен"); return; }
+  resetAnalysis(t); await DB.put(t); S.queue.unshift(t.id); S.total++; toast("Анализирую заново…"); renderTrack(); runQueue();
+  const iv=setInterval(()=>{ if (t.analyzed||t.failed){ clearInterval(iv); if (S.current===t.id){ renderTrack(); ensureDetail(t.id); } toast(t.failed?"Не получилось: "+t.err:`Готово: ${bpmText(effBpm(t))} BPM · ${effKey(t)||"?"}`); } }, 500); };
+$("#reAll").onclick=async ()=>{ const ts=[...S.tracks.values()].filter(t=>!t.missing && !t.big && S.files.has(t.id)); if(!ts.length){ toast("Нет треков"); return; }
+  if (!(await askConfirm(`Проанализировать заново ${ts.length} ${plural(ts.length,"трек","трека","треков")}? Ручные правки BPM и сетки сбросятся.`))) return;
+  for (const t of ts){ resetAnalysis(t); await DB.put(t); S.queue.push(t.id); } S.total=S.queue.length; S.done=0; renderAll(); runQueue(); toast("Переанализ запущен"); };
 window.__dj = {S, DB, detectBpm, detectKey, analyzeFile, ingest, parseKeyTag, camelot};
 </script>
 </body>
