@@ -314,8 +314,9 @@ html.tg-mode .no-tg{display:none!important}
         <div id="tgSrvRow" style="display:none;flex-direction:column;gap:8px"><label class="dim" style="font-size:13px" for="tgSrv">Адрес сервера бота (…workers.dev)</label><input id="tgSrv" class="nameinp" style="font-size:14px;font-family:var(--mono);font-weight:500" placeholder="https://dj-library.имя.workers.dev"><button class="smallbtn acc" id="tgSrvSave" style="align-self:flex-start">Сохранить</button></div>
         <span class="dim" style="font-size:12px" id="tgState"></span>
       </div>
-      <div class="pcard no-tg" style="gap:10px">
-        <b style="font-size:15px">Добавить отдельные треки</b>
+      <div class="pcard" id="singleCard" style="gap:10px">
+        <b style="font-size:15px" id="singleTitle">Добавить отдельные треки</b>
+        <span class="dim" id="upHint" style="display:none;font-size:13px;line-height:1.5">Для WAV и FLAC в полном качестве: файлы больше 20 МБ бот не может передать, поэтому их загружают сюда — в твоё хранилище. Можно выбрать сразу несколько.</span>
         <div class="row" style="gap:10px;flex-wrap:wrap">
           <label class="dim" style="font-size:13px" for="singleFolder">В папку:</label>
           <select id="singleFolder" class="pill" style="min-width:150px;height:40px"></select>
@@ -323,7 +324,8 @@ html.tg-mode .no-tg{display:none!important}
         </div>
         <button class="big" id="pickFiles" style="height:48px">+ Выбрать треки</button>
         <input type="file" id="fileInput" multiple accept="audio/*,.mp3,.wav,.aif,.aiff,.flac,.m4a,.aac,.ogg" style="display:none">
-        <span class="dim" style="font-size:12px">Можно выбрать один трек или сразу несколько.</span>
+        <span class="dim" style="font-size:12px" id="singleNote">Можно выбрать один трек или сразу несколько.</span>
+        <div id="upBox" style="display:none;flex-direction:column;gap:6px"><div class="row between"><b id="upName" style="font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:75%"></b><span class="badge" id="upPct" style="color:#C6F432;background:rgba(198,244,50,.14)">0%</span></div><div style="height:6px;border-radius:3px;background:#1d2026;overflow:hidden"><div id="upBar" style="height:100%;width:0;background:var(--acc);transition:width .3s"></div></div></div>
       </div>
       <div id="queueBox" style="display:flex;flex-direction:column;gap:10px"></div>
       <span class="eyebrow no-tg" style="margin-top:8px">Google Диск</span>
@@ -360,7 +362,7 @@ html.tg-mode .no-tg{display:none!important}
         <button class="ghost" id="freeBtn">Очистить память</button>
         <input type="file" id="impFile" accept=".json,application/json" style="display:none">
       </div>
-      <span class="dim" style="font-size:12px">Версия приложения: <b id="appVer">2026-11-16 · 20</b></span>
+      <span class="dim" style="font-size:12px">Версия приложения: <b id="appVer">2026-11-16 · 21</b></span>
       <span class="dim" style="font-size:13px;line-height:1.5">«Данные библиотеки» — это BPM, тональности и твои исправления. Сами треки в этот файл не входят. Сохрани его рядом с музыкой в облаке.</span>
     </div>
   </section>
@@ -1084,7 +1086,8 @@ async function playTrack(id){
   const src=S.files.get(id);
   if (!src){ toast(window.TG_MODE ? "Этого трека нет в чате бота — отправь его боту" : "Файл недоступен — открой папку или подключи Google Диск во вкладке «Добавить»"); return; }
   if (objUrl){ URL.revokeObjectURL(objUrl); objUrl=null; }
-  if (src.tg){ let f=TG_BLOBS.get(src.tg); if (!f){ toast("Загружаю трек из Telegram…"); try{ f=await getFile(id); }catch(e){ toast("Не получилось открыть: "+e.message); return; } } objUrl=URL.createObjectURL(f); audio.src=objUrl; }
+  if (src.tg && src.stream && !TG_BLOBS.get(src.tg)){ audio.src=tgUrl(src.tg); }
+  else if (src.tg){ let f=TG_BLOBS.get(src.tg); if (!f){ toast("Загружаю трек из Telegram…"); try{ f=await getFile(id); }catch(e){ toast("Не получилось открыть: "+e.message); return; } } objUrl=URL.createObjectURL(f); audio.src=objUrl; }
   else if (src.drive){ audio.src=mediaUrl(src.drive)+"#t=0"; }
   else { const f=await getFile(id); objUrl=URL.createObjectURL(f); audio.src=objUrl+"#t=0"; }
   S._startGuard=performance.now();
@@ -1461,6 +1464,7 @@ async function addSingles(items, folder){ // items: [{h|f, file}]
 }
 $("#pickFiles").onclick=async ()=>{
   const folder=targetFolder();
+  if (window.TG_MODE){ if (!TGS.upload){ toast("Хранилище для WAV ещё не подключено"); return; } $("#fileInput").dataset.folder=folder; $("#fileInput").click(); return; }
   if (window.showOpenFilePicker){
     try{
       const hs=await window.showOpenFilePicker({multiple:true, id:"djtracks", types:[{description:"Аудио", accept:{"audio/*":[".mp3",".wav",".aif",".aiff",".flac",".m4a",".aac",".ogg"]}}]});
@@ -1472,6 +1476,7 @@ $("#pickFiles").onclick=async ()=>{
 };
 $("#fileInput").addEventListener("change", async (e)=>{
   const files=[...e.target.files].filter(f=>isAudio(f.name));
+  if (window.TG_MODE){ const fo=e.target.dataset.folder||""; e.target.value=""; await uploadToStore(files, fo); return; }
   await addSingles(files.map(f=>({file:f})), e.target.dataset.folder||"");
   e.target.value="";
 });
@@ -1992,7 +1997,34 @@ async function syncNow(){
 
 /* ---------- Telegram bot as track storage ---------- */
 const DEFAULT_TG_SERVER = "https://dj-library.denissruklin.workers.dev";
-const TGS={server:"", initData:""};
+const TGS={server:"", initData:"", upload:false};
+const UPS={busy:false};
+async function uploadToStore(files, folder){
+  if (!files.length) return; if (UPS.busy){ toast("Подожди, идёт загрузка"); return; }
+  UPS.busy=true; const box=$("#upBox"); box.style.display="flex"; const api=(p)=>`${TGS.server}/api/upload/${p}${p.includes("?")?"&":"?"}auth=${encodeURIComponent(TGS.initData)}`;
+  const PART=20*1024*1024; let ok=0;
+  try{
+    for (let i=0;i<files.length;i++){ const f=files[i];
+      $("#upName").textContent=(files.length>1?`${i+1}/${files.length} · `:"")+f.name; $("#upPct").textContent="0%"; $("#upBar").style.width="0";
+      try{
+        let r=await fetch(api("init"), {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({name:f.name, size:f.size, mime:f.type||mimeOf(f.name)})});
+        let j=await r.json(); if(!r.ok) throw new Error(j.error||r.status);
+        const q=`key=${encodeURIComponent(j.key)}&uploadId=${encodeURIComponent(j.uploadId)}`, parts=[];
+        const n=Math.max(1, Math.ceil(f.size/PART));
+        for (let k=0;k<n;k++){
+          let tries=0, pr;
+          while (true){ try{ pr=await fetch(api(`part?${q}&part=${k+1}`), {method:"PUT", body:f.slice(k*PART, Math.min(f.size,(k+1)*PART))}); if (pr.ok) break; throw new Error("HTTP "+pr.status); }catch(err){ if (++tries>=3) throw err; await new Promise(r=>setTimeout(r,1500*tries)); } }
+          parts.push(await pr.json());
+          const pct=Math.round((k+1)/n*100); $("#upPct").textContent=pct+"%"; $("#upBar").style.width=pct+"%";
+        }
+        r=await fetch(api(`complete?${q}`), {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({parts, folder, mime:f.type||mimeOf(f.name)})});
+        j=await r.json(); if(!r.ok) throw new Error(j.error||r.status);
+        TG_BLOBS.set(j.id, f); ok++;   // already on this device: analyze without downloading it back
+      }catch(err){ toast(`Не загрузился «${f.name}»: ${err.message||err}`); }
+    }
+  } finally { UPS.busy=false; box.style.display="none"; }
+  if (ok){ toast(ok===1?"Трек загружен в хранилище":`Загружено треков: ${ok}`); await loadTelegram(); S.folder="Все"; S.sort="new"; $("#sortSel").value="new"; lastTab="lib"; renderAll(); show("lib"); }
+}
 const tgUrl=(id)=>`${TGS.server}/api/file/${encodeURIComponent(id)}?auth=${encodeURIComponent(TGS.initData)}`;
 function tgWebApp(){ try{ return window.Telegram && Telegram.WebApp && Telegram.WebApp.initData ? Telegram.WebApp : null; }catch(e){ return null; } }
 async function waitTelegram(ms=3000){ const t0=Date.now(); while (Date.now()-t0<ms){ if (tgWebApp()) return tgWebApp(); await new Promise(r=>setTimeout(r,100)); } return tgWebApp(); }
@@ -2002,12 +2034,17 @@ async function loadTelegram(){
   try{
     const r=await fetch(`${TGS.server}/api/tracks?auth=${encodeURIComponent(TGS.initData)}`); const j=await r.json();
     if (!r.ok) throw new Error(j.error||("HTTP "+r.status));
-    const ents=j.tracks.map(t=>({path: t.folder ? `Telegram/${t.folder}/${t.name}` : `Telegram/${t.name}`, tg:t.id, size:t.size, mtime:(t.date||0)*1000, meta:t}));
+    TGS.upload=!!j.upload; $("#pickFiles").textContent = TGS.upload ? "+ Загрузить WAV / FLAC" : "Хранилище для WAV не подключено"; $("#pickFiles").disabled=!TGS.upload;
+    const all=j.tracks.map(t=>({path: t.folder ? `Telegram/${t.folder}/${t.name}` : `Telegram/${t.name}`, tg:t.id, size:t.size, mtime:(t.date||0)*1000, meta:t}));
+    const best=new Map(); for (const e of all){ const k=trackId(e.path,e.size), p=best.get(k); if (!p || (e.meta.playable && !p.meta.playable) || (e.meta.stored && !p.meta.stored)) best.set(k,e); }   // same file in chat and in storage: use the playable copy
+    const ents=[...best.values()];
+    for (const e of ents){ const t=S.tracks.get(trackId(e.path,e.size)); if (t && t.big && e.meta.playable){ t.failed=false; t.big=false; t.err=""; } }
     await ingest(ents);
     for (const e of ents){ const id=trackId(e.path,e.size), t=S.tracks.get(id), src=S.files.get(id); if(!t) continue;
+      if (src && src.tg && e.meta.stored) src.stream=true;
       if (e.meta.performer && !t.artistFromTag){ t.artist=e.meta.performer; } if (e.meta.title && !t.analyzed){ t.title=e.meta.title; }
-      if (!e.meta.playable && src && src.tg){ t.failed=true; t.err="больше 20 МБ"; t.big=true; } await DB.put(t); }
-    $("#tgCount").textContent=ents.length; $("#tgState").textContent = ents.length ? `В боте ${ents.length} ${plural(ents.length,"трек","трека","треков")}` + (ents.some(e=>!e.meta.playable)?" · файлы больше 20 МБ Telegram не отдаёт приложению":"") : "Пока пусто — отправь боту первый трек";
+      if (!e.meta.playable && src && src.tg){ t.failed=true; t.err="больше 20 МБ — загрузи его через «Добавить» → «Загрузить WAV / FLAC»"; t.big=true; } await DB.put(t); }
+    $("#tgCount").textContent=ents.length; $("#tgState").textContent = ents.length ? `В боте ${ents.length} ${plural(ents.length,"трек","трека","треков")}` + (ents.some(e=>!e.meta.playable)?" · файлы больше 20 МБ из чата не открываются — загрузи их кнопкой ниже":"") : "Пока пусто — отправь боту первый трек";
     renderAll();
   }catch(e){ $("#tgState").textContent="Не получилось загрузить: "+e.message; }
 }
@@ -2018,6 +2055,7 @@ async function initTelegramSource(){
   TGS.server = (new URLSearchParams(location.search).get("srv")) || (await DB.getMeta("tgServer")) || DEFAULT_TG_SERVER;
   if (new URLSearchParams(location.search).get("srv")) await DB.setMeta("tgServer", TGS.server);
   $("#tgCard").style.display="flex";
+  $("#singleTitle").textContent="Загрузить WAV / FLAC"; $("#upHint").style.display=""; $("#singleNote").style.display="none";
   $("#tgSrvRow").style.display = TGS.server ? "none" : "flex";
   if (!TGS.server){ $("#tgState").textContent="Сервер бота ещё не подключён."; return; }
   await loadTelegram();
@@ -2035,7 +2073,7 @@ function cloudFromUrl(){
   }catch(e){ return null; }
 }
 
-const APP_VER = "2026-11-16 · 20";
+const APP_VER = "2026-11-16 · 21";
 (async function checkUpdate(){
   try{
     if (location.protocol!=="https:") return;
