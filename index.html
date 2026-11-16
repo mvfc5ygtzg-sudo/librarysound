@@ -57,7 +57,7 @@ h1{margin:0;font-family:var(--head);font-size:32px;font-weight:700;letter-spacin
 .pill.on{border-color:var(--acc-line);background:var(--acc-bg);color:var(--acc)}
 select.pill{appearance:none;-webkit-appearance:none;padding-right:12px}
 .list{display:flex;flex-direction:column;padding:0 12px}
-.trk{display:flex;align-items:center;gap:12px;padding:10px 8px;border-radius:14px;color:var(--text);background:transparent;border:none;text-align:left;width:100%}
+.trk{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none;display:flex;align-items:center;gap:12px;padding:10px 8px;border-radius:14px;color:var(--text);background:transparent;border:none;text-align:left;width:100%}
 .trk:hover{background:#111317}
 .trk.playing{background:#12160A}
 .cover{width:48px;height:48px;flex:none;border-radius:12px;display:flex;align-items:center;justify-content:center;overflow:hidden;background:#2a2e37}
@@ -82,6 +82,12 @@ select.pill{appearance:none;-webkit-appearance:none;padding-right:12px}
 nav.tabs{position:fixed;left:50%;transform:translateX(-50%);bottom:0;width:min(760px,100%);height:76px;border-top:1px solid #1C1F25;background:rgba(11,12,15,.96);backdrop-filter:blur(10px);display:flex;justify-content:space-around;align-items:center;padding-bottom:env(safe-area-inset-bottom);z-index:6}
 nav.tabs button{display:flex;flex-direction:column;align-items:center;gap:4px;color:var(--muted);background:none;border:none;font-size:11px;font-weight:500;min-width:56px;padding:6px 2px}
 nav.tabs button.on{color:var(--acc);font-weight:600}
+nav.tabs button svg{transition:transform .25s cubic-bezier(.3,1.6,.5,1)}
+nav.tabs button.on svg{transform:translateY(-2px) scale(1.12)}
+nav.tabs button.hov{color:var(--text)}
+nav.tabs button.hov svg{transform:scale(1.25)}
+nav.tabs{touch-action:none}
+nav.tabs .tabind{position:absolute;top:8px;left:0;height:46px;border-radius:16px;background:rgba(198,244,50,.10);border:1px solid rgba(198,244,50,.22);transition:transform .32s cubic-bezier(.3,1.3,.5,1),width .32s;pointer-events:none}
 .grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;padding:0 16px}
 @media(min-width:620px){.grid2{grid-template-columns:repeat(3,minmax(0,1fr))}}
 .fcard{display:flex;flex-direction:column;gap:6px;padding:16px;border-radius:20px;background:var(--card);border:1px solid var(--line);min-height:150px;text-align:left;color:var(--text)}
@@ -316,8 +322,8 @@ html.tg-mode .no-tg{display:none!important}
       </div>
       <div class="pcard" style="gap:10px">
         <b style="font-size:16px">Узнать BPM и тональность на слух</b>
-        <span class="dim" style="font-size:13px;line-height:1.5">Поднеси телефон к колонке — приложение послушает 15 секунд через микрофон и определит темп и тональность. Лучше на дропе, где есть бочка и бас.</span>
-        <button class="big" id="micGo" style="height:50px">🎙 Слушать 15 секунд</button>
+        <span class="dim" style="font-size:13px;line-height:1.5">Поднеси телефон к колонке и нажми кнопку — как только BPM и тональность перестанут меняться (обычно 7–15 секунд), ответ появится сам. Лучше на дропе, где есть бочка и бас.</span>
+        <button class="big" id="micGo" style="height:50px">🎙 Слушать трек</button>
         <div style="height:6px;border-radius:3px;background:#1d2026;overflow:hidden;display:none" id="micBarWrap"><div id="micBar" style="height:100%;width:0;background:var(--acc)"></div></div>
         <span class="dim" id="micState" style="font-size:13px"></span>
         <div id="micRes" style="display:none;flex-direction:column;gap:10px">
@@ -400,7 +406,7 @@ html.tg-mode .no-tg{display:none!important}
         <button class="ghost" id="freeBtn">Очистить память</button>
         <input type="file" id="impFile" accept=".json,application/json" style="display:none">
       </div>
-      <span class="dim" style="font-size:12px">Версия приложения: <b id="appVer">2026-11-16 · 24</b></span>
+      <span class="dim" style="font-size:12px">Версия приложения: <b id="appVer">2026-11-16 · 25</b></span>
       <span class="dim" style="font-size:13px;line-height:1.5">«Данные библиотеки» — это BPM, тональности и твои исправления. Сами треки в этот файл не входят. Сохрани его рядом с музыкой в облаке.</span>
     </div>
   </section>
@@ -762,16 +768,19 @@ function detectKey(x, sr){
     let norm=0; for(let i=0;i<12;i++) norm+=c[i]*c[i]; norm=Math.sqrt(norm)+1e-9;
     for (let i=0;i<12;i++) chroma[i]+=c[i]/norm;
   }
-  let best=null, bestR=-2;
+  const kr=keyFromChroma(chroma); detectKey.last=kr; return kr.key;
+}
+function keyFromChroma(chroma){
+  let best=null, bestR=-2, second=-2;
   for (let pc=0; pc<12; pc++){
     for (const minor of [false,true]){
       const prof=minor?PROF_MIN:PROF_MAJ;
       const rot=new Array(12); for(let i=0;i<12;i++) rot[i]=prof[(i-pc+12)%12];
       const r=pearson(chroma,rot);
-      if (r>bestR){ bestR=r; best={pc,minor}; }
+      if (r>bestR){ second=bestR; bestR=r; best={pc,minor}; } else if (r>second) second=r;
     }
   }
-  return camelot(best.pc, best.minor);
+  return {key:camelot(best.pc, best.minor), r:bestR, margin:bestR-second};
 }
 
 let _actx=null;
@@ -1109,7 +1118,7 @@ async function runQueue(){
       t.analyzed=true; t.analyzedAt=Date.now();
     }catch(e){ console.warn("analyze fail", t.fname, e); t.failed=true; t.failVer=DEC_VER; t.err=String(e && e.message || e); }
     await DB.put(t);
-    S.done++; S.analyzing=null;
+    S.done++; S.analyzing=null; tgDirty();
     renderQueue(); renderList(); if (S.current===id) renderTrack(); if (S.done%10===0) renderProfile();
     await new Promise(r=>setTimeout(r,10));
   }
@@ -1320,9 +1329,10 @@ function renderTiles(w){
   for (let t0=0; t0<n; t0+=WTILE){
     const cols=Math.min(WTILE, n-t0), c=document.createElement("canvas"); c.width=cols; c.height=WTH;
     const g=c.getContext("2d"), mid=WTH/2;
+    const sm=(a,i)=>{ const k=[1,2,3,2,1]; let s=0,ws=0; for (let j=-2;j<=2;j++){ const v=a[i+j]; if (v!=null){ s+=v*k[j+2]; ws+=k[j+2]; } } return s/ws; };   // light smoothing = even, clean outline
     for (let x=0;x<cols;x++){
-      const ci=t0+x, [r,gg,b]=colRGB(w.lo[ci],w.mi[ci],w.hi[ci]);
-      const hh=Math.max(1,(0.62*w.amp[ci]/255+0.38*Math.max(w.lo[ci],w.mi[ci],w.hi[ci])/255)*(WTH*0.9));
+      const ci=t0+x, lo=sm(w.lo,ci), mi=sm(w.mi,ci), hi=sm(w.hi,ci), am=Math.max(sm(w.amp,ci), w.amp[ci]*0.85), [r,gg,b]=colRGB(lo,mi,hi);
+      const hh=Math.max(1,(0.62*am/255+0.38*Math.max(lo,mi,hi)/255)*(WTH*0.9));
       g.fillStyle=`rgb(${r|0},${gg|0},${b|0})`; g.fillRect(x, mid-hh/2, 1, hh);
     }
     tiles.push({c, x0:t0, cols});
@@ -1331,7 +1341,7 @@ function renderTiles(w){
 }
 function tilesFor(t){
   const det=S.detail.get(t.id), w=det||t.wave; if(!w) return null;
-  const key=t.id+(det?"|d":"|o")+"|v11", hit=_wcache.get(key); if (hit) return hit;
+  const key=t.id+(det?"|d":"|o")+"|v12", hit=_wcache.get(key); if (hit) return hit;
   const v={tiles:renderTiles(w), cps: det ? DETAIL_CPS : w.lo.length/(t.dur||1), n:w.lo.length};
   _wcache.set(key, v); if (_wcache.size>8) _wcache.delete(_wcache.keys().next().value);
   return v;
@@ -1379,10 +1389,10 @@ function drawDetail(t){
     const n0=Math.ceil((start-gr.first)/gr.P), n1=Math.floor((start+z-gr.first)/gr.P);
     g.font=`${10*dpr}px ui-monospace, Menlo, monospace`; g.textBaseline="top";
     for (let k=n0;k<=n1;k++){
-      const bt=gr.first+k*gr.P; if (bt<0) continue; const x=(bt-start)/z*W;
+      const bt=gr.first+k*gr.P; if (bt<0) continue; const x=Math.round((bt-start)/z*W);   // whole pixels: lines stay sharp and even while moving
       const isBar=(((k-gr.off)%4)+4)%4===0;
-      if (isBar){ g.fillStyle="rgba(255,60,70,.95)"; g.fillRect(x-dpr,0,2*dpr,H); const bar=Math.floor((k-gr.off)/4)+1; if (bar>0){ g.fillStyle="#FF8A92"; g.fillText(String(bar), x+3*dpr, 3*dpr); } }
-      else { g.fillStyle="rgba(255,255,255,.32)"; g.fillRect(x-0.5*dpr,0,dpr,H); }
+      if (isBar){ g.fillStyle="rgba(255,60,70,.95)"; g.fillRect(x-Math.round(dpr),0,Math.round(2*dpr),H); const bar=Math.floor((k-gr.off)/4)+1; if (bar>0){ g.fillStyle="#FF8A92"; g.fillText(String(bar), x+3*dpr, 3*dpr); } }
+      else { g.fillStyle="rgba(255,255,255,.38)"; g.fillRect(x,0,Math.max(1,Math.round(dpr)),H); }
     }
     const cur=Math.floor((now-gr.first)/gr.P)-gr.off; const bar=Math.floor(cur/4)+1, beat=((cur%4)+4)%4+1;
     $("#tBars").textContent = now>=gr.first ? `такт ${bar} · доля ${beat}` : "";
@@ -1587,11 +1597,27 @@ function show(view){
   if (view==="lib"){ const L=$("#list"); L.classList.remove("fresh"); void L.offsetWidth; L.classList.add("fresh"); setTimeout(()=>L.classList.remove("fresh"),600); }
   document.querySelectorAll(".view").forEach(v=>v.classList.remove("on"));
   $("#v-"+view).classList.add("on");
-  document.querySelectorAll("nav.tabs button").forEach(b=>b.classList.toggle("on", b.dataset.tab===(view==="track"?lastTab:view)));
+  document.querySelectorAll("nav.tabs button").forEach(b=>b.classList.toggle("on", b.dataset.tab===(view==="track"?lastTab:view))); NAV.place && NAV.place();
   window.scrollTo(0,0);
 }
 function openTrack(id){ S.current=id; try{ resetStemsView(id); }catch(e){} if (S.playingId!==id){ S.viewTime=0; S.viewFor=id; } $("#editRow").classList.remove("on"); $("#tPath").style.display="none"; renderTrack(); show("track"); requestAnimationFrame(drawWaves); }
-document.querySelectorAll("nav.tabs button").forEach(b=>b.onclick=()=>{ lastTab=b.dataset.tab; show(b.dataset.tab); });
+document.querySelectorAll("nav.tabs button").forEach(b=>b.onclick=()=>{ if (NAV.slid){ NAV.slid=false; return; } lastTab=b.dataset.tab; show(b.dataset.tab); });
+/* press and slide along the bottom bar to pick a tab */
+const NAV={slid:false};
+(function(){
+  const nav=$("nav.tabs"), ind=document.createElement("span"); ind.className="tabind"; nav.prepend(ind);
+  const btns=[...nav.querySelectorAll("button")];
+  const place=(b)=>{ if(!b) return; const nr=nav.getBoundingClientRect(), r=b.getBoundingClientRect(); const w=Math.min(r.width, 64); ind.style.width=w+"px"; ind.style.transform=`translateX(${r.left-nr.left+(r.width-w)/2}px)`; };
+  NAV.place=()=>place(nav.querySelector("button.on"));
+  const at=(x)=>btns.find(b=>{ const r=b.getBoundingClientRect(); return x>=r.left && x<=r.right; });
+  let down=false, cur=null, x0=0;
+  const buzz=()=>{ try{ Telegram.WebApp.HapticFeedback.selectionChanged(); }catch(e){ try{ navigator.vibrate&&navigator.vibrate(5); }catch(_){} } };
+  nav.addEventListener("pointerdown",(e)=>{ down=true; x0=e.clientX; cur=at(e.clientX); btns.forEach(b=>b.classList.toggle("hov", b===cur)); place(cur); try{ nav.setPointerCapture(e.pointerId); }catch(_){} });
+  nav.addEventListener("pointermove",(e)=>{ if(!down) return; const b=at(e.clientX); if (b && b!==cur){ cur=b; btns.forEach(x=>x.classList.toggle("hov", x===b)); place(b); buzz(); } });
+  const up=(e)=>{ if(!down) return; down=false; btns.forEach(b=>b.classList.remove("hov")); if (cur){ NAV.slid=true; setTimeout(()=>NAV.slid=false, 400); lastTab=cur.dataset.tab; show(cur.dataset.tab); } else NAV.place(); };
+  nav.addEventListener("pointerup", up); nav.addEventListener("pointercancel", ()=>{ down=false; btns.forEach(b=>b.classList.remove("hov")); NAV.place(); });
+  window.addEventListener("resize", NAV.place); setTimeout(NAV.place, 50);
+})();
 $("#backBtn").onclick=()=>show(lastTab);
 document.addEventListener("click",(e)=>{
   const trk=e.target.closest(".trk[data-id]"); if (trk){ openTrack(trk.dataset.id); return; }
@@ -1757,7 +1783,7 @@ $("#delOk").onclick=async ()=>{
       const t=S.tracks.get(DEL.target);
       if (fromDrive){ const src=S.files.get(t.id); const r=await gauth(`${DAPI}/${src.drive}?supportsAllDrives=true`, {method:"PATCH", headers:{"Content-Type":"application/json"}, body:JSON.stringify({trashed:true})}); if(!r.ok) throw new Error("Диск не удалил файл ("+r.status+")"); }
       const srcT=S.files.get(t.id); if (srcT && srcT.tg){ try{ await fetch(`${TGS.server}/api/track/${srcT.tg}?auth=${encodeURIComponent(TGS.initData)}`, {method:"DELETE"}); }catch(e){} }
-      if (window.TG_MODE){ S.tracks.delete(t.id); S.files.delete(t.id); await DB.del(t.id); }   // in Telegram the bot is the library: really remove it
+      if (window.TG_MODE){ S.tracks.delete(t.id); S.files.delete(t.id); await DB.del(t.id); TGS.sig=null; }   // in Telegram the bot is the library: really remove it
       else { t.hidden=true; t.editedAt=Date.now(); await DB.put(t); }
       if (S.playingId===t.id){ audio.pause(); }
       toast(fromDrive ? "Трек удалён и перемещён в корзину Google Диска" : "Трек удалён из библиотеки");
@@ -2144,6 +2170,7 @@ function buildData(){ return {app:"dj-library", version:2, exportedAt:new Date()
   profile:{name:P.name, skin:P.skin, tone:P.tone, avatar:P.avatar, lastLevel:P.lastLevel},
   tracks:[...S.tracks.values()].map(({cover,missing,...t})=>t)}; }
 function scheduleSync(){
+  tgDirty();
   if (S._merging || !CLOUD.cfg || !CLOUD.cfg.folderId || !CLOUD.cfg.clientId) return;
   SYNC.pending=true; clearTimeout(SYNC.timer); SYNC.timer=setTimeout(syncNow, 6000); renderUpload();
 }
@@ -2209,10 +2236,36 @@ async function uploadToStore(files, folder){
 const tgUrl=(id)=>`${TGS.server}/api/file/${encodeURIComponent(id)}?auth=${encodeURIComponent(TGS.initData)}`;
 function tgWebApp(){ try{ return window.Telegram && Telegram.WebApp && Telegram.WebApp.initData ? Telegram.WebApp : null; }catch(e){ return null; } }
 async function waitTelegram(ms=3000){ const t0=Date.now(); while (Date.now()-t0<ms){ if (tgWebApp()) return tgWebApp(); await new Promise(r=>setTimeout(r,100)); } return tgWebApp(); }
+/* ---------- library state shared by Mac & iPhone (via the bot server) ---------- */
+const TSY={dirty:false, timer:null, busy:false};
+const b64e=(u8)=>{ let s=""; for (let i=0;i<u8.length;i+=8192) s+=String.fromCharCode.apply(null, u8.subarray(i,i+8192)); return btoa(s); };
+const b64d=(s)=>{ const b=atob(s), u=new Uint8Array(b.length); for (let i=0;i<b.length;i++) u[i]=b.charCodeAt(i); return u; };
+function packWave(w){ if(!w||!w.lo) return w; const n=w.lo.length, u=new Uint8Array(n*4); u.set(w.lo,0); u.set(w.mi,n); u.set(w.hi,2*n); u.set(w.amp,3*n); return {b64:b64e(u), n}; }
+function unpackWave(w){ if(!w||!w.b64) return w; const u=b64d(w.b64), n=w.n; return {lo:Array.from(u.subarray(0,n)), mi:Array.from(u.subarray(n,2*n)), hi:Array.from(u.subarray(2*n,3*n)), amp:Array.from(u.subarray(3*n,4*n))}; }
+function tgDirty(){ if (!window.TG_MODE || !TGS.server || S._merging) return; TSY.dirty=true; clearTimeout(TSY.timer); TSY.timer=setTimeout(tgPush, 12000); }
+async function tgPush(){
+  if (!TSY.dirty || TSY.busy || !TGS.initData) return; TSY.busy=true; TSY.dirty=false;
+  try{
+    const tracks=[...S.tracks.values()].filter(t=>t.analyzed||t.editedAt).map(({cover,missing,peaks,x22,...t})=>({...t, wave:packWave(t.wave)}));
+    const r=await fetch(`${TGS.server}/api/state?auth=${encodeURIComponent(TGS.initData)}`, {method:"PUT", headers:{"Content-Type":"application/json"}, body:JSON.stringify({profile:{name:P.name, skin:P.skin, tone:P.tone, avatar:P.avatar, lastLevel:P.lastLevel, savedAt:P.savedAt||0}, tracks})});
+    if (!r.ok) TSY.dirty=true;
+  }catch(e){ TSY.dirty=true; } finally { TSY.busy=false; }
+}
+async function tgPull(){
+  try{
+    const r=await fetch(`${TGS.server}/api/state?auth=${encodeURIComponent(TGS.initData)}`); if(!r.ok) return; const d=await r.json();
+    S._merging=true; let ch=false;
+    for (const t0 of d.tracks||[]){ const ex=S.tracks.get(t0.id); if (ex && stamp(ex)>=stamp(t0)) continue; const t={...t0, wave:unpackWave(t0.wave)};
+      const m = ex ? {...ex, ...t, cover:ex.cover, missing:ex.missing, failed:false} : {...t, missing:!S.files.has(t.id)}; S.tracks.set(t.id,m); await DB.put(m); ch=true; }
+    if (d.profile && (d.profile.savedAt||0) > (P.savedAt||0)){ Object.assign(P, d.profile); await DB.setMeta("profile", {...P}); ch=true; renderProfile(); }
+    S._merging=false; if (ch) renderAll();
+  }catch(e){ S._merging=false; }
+}
 async function loadTelegram(){
   if (!TGS.server || !TGS.initData) return;
-  $("#tgState").textContent="Загружаю список из бота…";
+  if (!TGS.loadedOnce) $("#tgState").textContent="Загружаю список из бота…";
   try{
+    await tgPull();
     const r=await fetch(`${TGS.server}/api/tracks?auth=${encodeURIComponent(TGS.initData)}`); const j=await r.json();
     if (!r.ok) throw new Error(j.error||("HTTP "+r.status));
     TGS.upload=!!j.upload; $("#pickFiles").textContent = TGS.upload ? "+ Загрузить WAV / FLAC" : "Хранилище для WAV не подключено"; $("#pickFiles").disabled=!TGS.upload;
@@ -2221,6 +2274,9 @@ async function loadTelegram(){
     const ents=[...best.values()];
     for (const e of ents){ const t=S.tracks.get(trackId(e.path,e.size)); if (t && t.big && e.meta.playable){ t.failed=false; t.big=false; t.err=""; } if (t && t.hidden){ t.hidden=false; } }
     if (S.hiddenFolders.size){ S.hiddenFolders.clear(); await DB.setMeta("hiddenFolders", []); }   // old "deleted folder" marks from the Mac/Drive library must not hide bot tracks
+    const sig=ents.map(e=>e.tg).join(","); if (TGS.sig===sig){ return; } TGS.sig=sig;
+    const live=new Set(ents.map(e=>trackId(e.path,e.size)));
+    for (const [id,t] of [...S.tracks]){ const sr=S.files.get(id); if ((sr && sr.tg || (t.path||"").startsWith("Telegram/")) && !live.has(id)){ S.tracks.delete(id); S.files.delete(id); await DB.del(id); } }
     if (!TGS.loadedOnce){ TGS.loadedOnce=true; S.folder="Все"; S.q=""; const qi=$("#q"); if (qi) qi.value=""; S.bpmMin=S.bpmMax=null; S.keyF=null; }
     await ingest(ents);
     for (const e of ents){ const id=trackId(e.path,e.size), t=S.tracks.get(id), src=S.files.get(id); if(!t) continue;
@@ -2242,7 +2298,9 @@ async function initTelegramSource(){
   $("#tgSrvRow").style.display = TGS.server ? "none" : "flex";
   if (!TGS.server){ $("#tgState").textContent="Сервер бота ещё не подключён."; return; }
   await loadTelegram();
-  document.addEventListener("visibilitychange", ()=>{ if (document.visibilityState==="visible") loadTelegram(); });
+  document.addEventListener("visibilitychange", ()=>{ if (document.visibilityState==="visible") loadTelegram(); else tgPush(); });
+  setInterval(()=>{ if (document.visibilityState==="visible") loadTelegram(); }, 20000);   // tracks sent from the Mac show up on the phone by themselves
+  if (!P.avatar){ try{ const ph=Telegram.WebApp.initDataUnsafe.user.photo_url; if (ph){ P.avatar=ph; renderProfile(); } }catch(e){} }
 }
 $("#tgRefresh").onclick=()=>loadTelegram();
 $("#tgChat").onclick=()=>{ try{ Telegram.WebApp.close(); }catch(e){} };
@@ -2256,7 +2314,7 @@ function cloudFromUrl(){
   }catch(e){ return null; }
 }
 
-const APP_VER = "2026-11-16 · 24";
+const APP_VER = "2026-11-16 · 25";
 (async function checkUpdate(){
   try{
     if (location.protocol!=="https:") return;
@@ -2309,11 +2367,20 @@ function showReconnect(){
   $("#v-lib .top").after(b);
   $("#reBtn").onclick=async()=>{ b.remove(); await resumeOrPick(); };
 }
+/* ---------- long press on a track in the list = delete ---------- */
+(function(){ let tm=null, fired=false, x0=0, y0=0;
+  document.addEventListener("pointerdown",(e)=>{ const r=e.target.closest(".trk[data-id]"); if(!r) return; fired=false; x0=e.clientX; y0=e.clientY;
+    tm=setTimeout(()=>{ fired=true; try{ Telegram.WebApp.HapticFeedback.impactOccurred("medium"); }catch(_){ try{navigator.vibrate&&navigator.vibrate(15);}catch(__){} } openDelete("track", r.dataset.id); }, 550); });
+  document.addEventListener("pointermove",(e)=>{ if (tm && (Math.abs(e.clientX-x0)>10||Math.abs(e.clientY-y0)>10)){ clearTimeout(tm); tm=null; } });
+  document.addEventListener("pointerup",()=>{ clearTimeout(tm); tm=null; });
+  document.addEventListener("click",(e)=>{ if (fired && e.target.closest(".trk[data-id]")){ e.stopPropagation(); e.preventDefault(); fired=false; } }, true);
+  document.addEventListener("contextmenu",(e)=>{ if (e.target.closest(".trk[data-id]")) e.preventDefault(); });
+})();
 /* ---------- failed tracks: retry / remove ---------- */
 async function removeTrack(id){
   const t=S.tracks.get(id); if(!t) return; const sr=S.files.get(id);
   if (sr && sr.tg){ try{ await fetch(`${TGS.server}/api/track/${sr.tg}?auth=${encodeURIComponent(TGS.initData)}`, {method:"DELETE"}); }catch(e){} }
-  if (window.TG_MODE || sr && sr.tg){ S.tracks.delete(id); S.files.delete(id); await DB.del(id); }
+  if (window.TG_MODE || sr && sr.tg){ S.tracks.delete(id); S.files.delete(id); await DB.del(id); TGS.sig=null; }
   else { t.hidden=true; t.editedAt=Date.now(); await DB.put(t); }
 }
 document.addEventListener("click", async (e)=>{
@@ -2348,37 +2415,49 @@ $("#tapFind").onclick=()=>{ if (!TAP.bpm){ toast("Сначала настучи 
 /* ---------- listen through the microphone: BPM + key ---------- */
 const MIC={busy:false, bpm:null, key:null};
 $("#micGo").onclick=async ()=>{
-  if (MIC.busy) return; MIC.busy=true; const st=$("#micState"), btn=$("#micGo");
+  if (MIC.busy){ MIC.stop=true; return; } MIC.busy=true; MIC.stop=false; const st=$("#micState"), btn=$("#micGo");
   let stream=null, ctx=null;
   try{
     st.textContent="Разреши доступ к микрофону…";
     stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false, noiseSuppression:false, autoGainControl:false}});
     const AC=window.AudioContext||window.webkitAudioContext; ctx=new AC(); await ctx.resume();
-    const src=ctx.createMediaStreamSource(stream), proc=ctx.createScriptProcessor(4096,1,1), chunks=[]; const SEC=15, sr=ctx.sampleRate;
-    proc.onaudioprocess=(ev)=>{ chunks.push(new Float32Array(ev.inputBuffer.getChannelData(0))); };
+    const src=ctx.createMediaStreamSource(stream), proc=ctx.createScriptProcessor(4096,1,1), sr=ctx.sampleRate, step=sr/11025;
+    let buf=new Float32Array(11025*45), n=0, acc=0, accN=0, frac=0;
+    proc.onaudioprocess=(ev)=>{ const d=ev.inputBuffer.getChannelData(0);   // downsample to 11025 Hz on the fly
+      for (let i=0;i<d.length;i++){ acc+=d[i]; accN++; frac+=1; if (frac>=step){ frac-=step; if (n<buf.length) buf[n++]=acc/accN; acc=0; accN=0; } } };
     src.connect(proc); proc.connect(ctx.destination);
-    btn.disabled=true; $("#micBarWrap").style.display="block"; $("#micRes").style.display="none";
-    const t0=performance.now();
-    await new Promise(res=>{ const tick=()=>{ const el=(performance.now()-t0)/1000; $("#micBar").style.width=Math.min(100,el/SEC*100)+"%"; st.textContent=`Слушаю… ${Math.max(0,Math.ceil(SEC-el))} с`; if (el>=SEC) res(); else setTimeout(tick,200); }; tick(); });
-    proc.disconnect(); src.disconnect(); stream.getTracks().forEach(t=>t.stop()); stream=null;
-    st.textContent="Анализирую…"; await new Promise(r=>setTimeout(r,30));
-    let len=0; for (const c of chunks) len+=c.length; const all=new Float32Array(len); let o=0; for (const c of chunks){ all.set(c,o); o+=c.length; }
-    const step=sr/11025, outLen=Math.floor(len/step), x=new Float32Array(outLen);
-    for (let i=0;i<outLen;i++){ const a=Math.floor(i*step), b=Math.min(len,Math.floor((i+1)*step)); let s=0; for (let j=a;j<b;j++) s+=all[j]; x[i]=s/Math.max(1,b-a); }
-    let peak=0; for (let i=0;i<outLen;i++) peak=Math.max(peak,Math.abs(x[i]));
-    if (peak<0.003) throw new Error("Слишком тихо — поднеси телефон ближе к колонке");
-    const r=detectBpm(x, 11025), k=detectKey(x, 11025);
-    MIC.bpm=r?r.bpm:null; MIC.key=k||null;
+    btn.textContent="■ Стоп"; $("#micBarWrap").style.display="block"; $("#micRes").style.display="none";
+    const t0=performance.now(), MAX=40, hist=[]; let done=null;
+    while (!done){
+      await new Promise(r=>setTimeout(r,1500));
+      const el=(performance.now()-t0)/1000; $("#micBar").style.width=Math.min(100,el/MAX*100)+"%";
+      if (n<11025*5){ st.textContent="Слушаю…"; if (MIC.stop) break; continue; }
+      const x=buf.subarray(Math.max(0,n-11025*20), n); let peak=0; for (let i=0;i<x.length;i+=7) peak=Math.max(peak,Math.abs(x[i]));
+      if (peak<0.003){ st.textContent="Тихо… поднеси телефон ближе к колонке"; if (el>MAX||MIC.stop) throw new Error("Слишком тихо — поднеси телефон ближе к колонке"); continue; }
+      const r=detectBpm(x, 11025); detectKey(buf.subarray(0,n), 11025); const kr=detectKey.last||{};
+      hist.push({bpm:r?r.bpm:null, key:kr.key, m:kr.margin||0});
+      const last=hist.slice(-3), L=last[last.length-1], bOk=last.length===3 && last.every(h=>h.bpm && Math.abs(h.bpm-L.bpm)<0.7), kOk=last.length===3 && last.every(h=>h.key===L.key);
+      st.textContent=`Слышу: ${L.bpm?bpmText(L.bpm):"…"} BPM · ${L.key||"…"}${bOk&&kOk?"":" — уточняю"}`;
+      if ((bOk && kOk && el>=7) || el>=MAX || MIC.stop){
+        const mode=(arr)=>{ const c={}; let b=null,bc=0; for (const v of arr){ if(v==null) continue; c[v]=(c[v]||0)+1; if (c[v]>bc){ bc=c[v]; b=v; } } return b; };
+        done={bpm: bOk ? L.bpm : (mode(hist.map(h=>h.bpm&&Math.round(h.bpm)))||L.bpm), key: kOk ? L.key : mode(hist.map(h=>h.key)), sure:bOk&&kOk, sec:Math.round(el)};
+      }
+    }
+    proc.disconnect(); src.disconnect();
+    if (!done) throw new Error("Остановлено — дай послушать хотя бы 7 секунд");
+    MIC.bpm=done.bpm; MIC.key=done.key;
+    try{ Telegram.WebApp.HapticFeedback.notificationOccurred("success"); }catch(e){}
     $("#micBpm").textContent=MIC.bpm?bpmText(MIC.bpm):"—"; $("#micKey").textContent=MIC.key||"—"; $("#micKey").setAttribute("style", keyBadgeStyle(MIC.key)+";padding:2px 10px;border-radius:12px");
     $("#micKeyName").textContent = MIC.key ? (CAMELOT_NAME[MIC.key]||"") : "Тональность не определилась — попробуй на другом месте трека";
     $("#micCompat").textContent = MIC.key ? "Сводится с: "+compatKeys(MIC.key).join(", ") : "";
-    $("#micRes").style.display="flex"; st.textContent="Готово. Результат по 15 секундам — на длинном треке точность выше.";
+    $("#micRes").style.display="flex"; st.textContent = done.sure ? `Готово за ${done.sec} с — результат стабильный.` : `Не до конца уверен (${done.sec} с). Попробуй на дропе, где громко бочка и бас.`;
   }catch(e){
     const m = e && (e.name==="NotAllowedError"||e.name==="SecurityError") ? "Нет доступа к микрофону. Разреши его для Telegram в настройках телефона и попробуй снова." : (e && e.name==="NotFoundError") ? "Микрофон не найден" : (e && e.message || String(e));
     st.textContent=m;
-  }finally{ try{ stream && stream.getTracks().forEach(t=>t.stop()); }catch(e){} try{ ctx && ctx.close(); }catch(e){} MIC.busy=false; btn.disabled=false; $("#micBarWrap").style.display="none"; }
+  }finally{ try{ stream && stream.getTracks().forEach(t=>t.stop()); }catch(e){} try{ ctx && ctx.close(); }catch(e){} MIC.busy=false; btn.textContent="🎙 Слушать трек"; $("#micBarWrap").style.display="none"; }
 };
 $("#micFind").onclick=()=>findByBpm(MIC.bpm, MIC.key);
+(function(){ const sm=DB.setMeta.bind(DB); DB.setMeta=async (k,v)=>{ if (k==="profile" && !S._merging && v){ v.savedAt=P.savedAt=Date.now(); tgDirty(); } return sm(k,v); }; })();
 window.__dj = {S, DB, detectBpm, detectKey, analyzeFile, ingest, parseKeyTag, camelot};
 </script>
 </body>

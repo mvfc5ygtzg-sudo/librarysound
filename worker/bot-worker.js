@@ -129,6 +129,21 @@ export default {
         const lib = await getLib(env, uid);
         return json({ upload: !!env.FILES, tracks: lib.map(({ file_id, r2, ...t }) => ({ ...t, stored: !!r2, playable: !!r2 || t.size <= BOT_API_DOWNLOAD_LIMIT })) });
       }
+      // library state (analysis, edits, profile) shared by all devices of this Telegram user
+      if (url.pathname === "/api/state") {
+        const sk = `state:${uid}`;
+        if (req.method === "GET") return json((await env.TRACKS.get(sk, "json")) || {});
+        if (req.method === "PUT") {
+          const inc = await req.json(); const cur = (await env.TRACKS.get(sk, "json")) || {};
+          const stamp = (t) => Math.max(t.editedAt || 0, t.analyzedAt || 0);
+          const map = new Map((cur.tracks || []).map((t) => [t.id, t]));
+          for (const t of inc.tracks || []) { const ex = map.get(t.id); if (!ex || stamp(t) >= stamp(ex)) map.set(t.id, t); }
+          const profile = (inc.profile && (!cur.profile || (inc.profile.savedAt || 0) >= (cur.profile.savedAt || 0))) ? inc.profile : cur.profile;
+          const out = { profile, tracks: [...map.values()], savedAt: Date.now() };
+          await env.TRACKS.put(sk, JSON.stringify(out));
+          return json({ ok: true, savedAt: out.savedAt });
+        }
+      }
       const mDel = url.pathname.match(/^\/api\/track\/([\w-]+)$/);
       if (mDel && req.method === "DELETE") {
         const lib = await getLib(env, uid); const t = lib.find((x) => x.id === mDel[1]);
