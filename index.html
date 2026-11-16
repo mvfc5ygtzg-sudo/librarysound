@@ -126,6 +126,11 @@ html.tg-mode .no-tg{display:none!important}
 .legend{display:flex;gap:10px;flex-wrap:wrap;font-size:11px;color:var(--muted)}
 .legend i{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:5px;vertical-align:0}
 .zbtn{width:34px;height:34px;border-radius:10px;border:1px solid var(--line2);background:#14161B;color:var(--text);font-size:18px;line-height:1}
+.cues{display:grid;grid-template-columns:repeat(8,1fr);gap:6px}
+.cue{height:46px;border-radius:10px;border:1px solid var(--line2);background:#15171c;color:var(--muted);font-family:var(--mono);font-weight:700;font-size:15px;display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.1;touch-action:manipulation;-webkit-user-select:none;user-select:none;transition:transform .08s}
+.cue small{font-size:9px;font-weight:500;opacity:.85}
+.cue.set{color:#0B0C0F;border-color:transparent}
+.cue:active{transform:scale(.94)}
 .fadd{position:absolute;top:10px;right:52px;width:36px;height:36px;border-radius:10px;border:1px solid var(--acc-line);background:#1A2108;color:var(--acc);display:flex;align-items:center;justify-content:center;z-index:2;font-size:22px;font-weight:600;line-height:1}
 .pick{display:flex;align-items:center;gap:10px;padding:10px;border-radius:12px;background:var(--card);border:1px solid var(--line);color:var(--text);text-align:left;width:100%}
 .pick.on{border-color:var(--acc);background:#151a0a}
@@ -277,6 +282,9 @@ html.tg-mode .no-tg{display:none!important}
         </div>
         <div class="wdwrap"><canvas id="tDetail" class="wdetail" aria-label="Волна трека с сеткой, нажми для перемотки"></canvas><div class="wmsg" id="tDetailMsg"></div></div>
         <canvas id="tOver" class="wover" aria-label="Весь трек, нажми для перемотки"></canvas>
+        <div class="row between" style="margin-top:2px"><span class="eyebrow">Hot cues</span><button class="smallbtn" id="cueQ" style="height:30px;font-size:12px">Квант: по доле</button></div>
+        <div class="cues" id="cuePads"></div>
+        <span class="dim" style="font-size:11px">Тап по пустой — поставить метку · тап по метке — прыгнуть и играть · зажать — удалить. Двигай волну пальцем — будет слышно, как скрэтч.</span>
         <div class="row between" style="font-family:var(--mono);font-size:12px;color:var(--muted)"><span id="tPos">0:00</span><span id="tBars"></span><span id="tDur">0:00</span></div>
       </div>
       <div class="row" style="gap:10px">
@@ -414,7 +422,7 @@ html.tg-mode .no-tg{display:none!important}
         <button class="ghost" id="freeBtn">Очистить память</button>
         <input type="file" id="impFile" accept=".json,application/json" style="display:none">
       </div>
-      <span class="dim" style="font-size:12px">Версия приложения: <b id="appVer">2026-11-16 · 26</b></span>
+      <span class="dim" style="font-size:12px">Версия приложения: <b id="appVer">2026-11-16 · 27</b></span>
       <span class="dim" style="font-size:13px;line-height:1.5">«Данные библиотеки» — это BPM, тональности и твои исправления. Сами треки в этот файл не входят. Сохрани его рядом с музыкой в облаке.</span>
     </div>
   </section>
@@ -1240,7 +1248,7 @@ function renderQueue(){
   box.innerHTML=html;
   $("#pickLabel").textContent = S.rootName ? "Обновить / выбрать другую папку" : "Выбрать папку с музыкой";
 }
-function renderTrack(){
+function renderTrack(){ try{ setTimeout(renderCues,0); }catch(e){}
   const t=S.tracks.get(S.current); if(!t) return;
   const k=effKey(t), b=effBpm(t);
   $("#tFolder").textContent = "📁 "+(t.userFolder || t.sub || t.folder) + " ▾";
@@ -1392,14 +1400,16 @@ function drawOverview(t){
     _ovr.key=key; _ovr.img=off;
   }
   g.drawImage(_ovr.img, 0, 0);
-  const px=curTime(t)/(t.dur||1)*W;
+  (t.cues||[]).forEach((cv,i)=>{ if (cv==null) return; const x=cv/(t.dur||1)*W; g.fillStyle=CUE_COL[i]; g.beginPath(); g.moveTo(x-5,0); g.lineTo(x+5,0); g.lineTo(x,7); g.closePath(); g.fill(); g.fillRect(x-0.5,0,1,H); });
+  const px=(S._drawAt!=null?S._drawAt:curTime(t))/(t.dur||1)*W;
   g.fillStyle="#fff"; g.fillRect(px-1,0,2,H);
 }
+function drawDetailAt(time){ const t=S.tracks.get(S.current); if (!t) return; S._drawAt=time; drawDetail(t); drawOverview(t); S._drawAt=null; $("#tPos").textContent=fmtTime(time); }
 function drawDetail(t){
   const c=$("#tDetail"); if(!c || !c.clientWidth) return; const {g,W,H,dpr}=fitCanvas(c);
   g.clearRect(0,0,W,H);
   const v=tilesFor(t); if(!v) return;
-  const z=S.zoom, now=curTime(t), start=now-z/2;
+  const z=S.zoom, now=S._drawAt!=null?S._drawAt:curTime(t), start=now-z/2;
   drawTiles(g, v, start*v.cps, z*v.cps, W, H);
   // centre line
   g.fillStyle="rgba(255,255,255,.08)"; g.fillRect(0,H/2-0.5,W,1);
@@ -1417,6 +1427,10 @@ function drawDetail(t){
     const cur=Math.floor((now-gr.first)/gr.P)-gr.off; const bar=Math.floor(cur/4)+1, beat=((cur%4)+4)%4+1;
     $("#tBars").textContent = now>=gr.first ? `такт ${bar} · доля ${beat}` : "";
   } else $("#tBars").textContent="";
+  // hot cue markers
+  (t.cues||[]).forEach((cv,i)=>{ if (cv==null) return; const x=Math.round((cv-start)/z*W); if (x<-20||x>W+20) return;
+    g.fillStyle=CUE_COL[i]; g.fillRect(x-Math.round(dpr),0,Math.round(2*dpr),H); g.fillRect(x, H-16*dpr, 14*dpr, 16*dpr);
+    g.fillStyle="#0B0C0F"; g.font=`bold ${11*dpr}px ui-monospace, Menlo, monospace`; g.textBaseline="middle"; g.fillText("ABCDEFGH"[i], x+3*dpr, H-8*dpr); });
   // playhead
   g.fillStyle="#fff"; g.fillRect(W/2-dpr,0,2*dpr,H);
   g.beginPath(); g.moveTo(W/2-6*dpr,0); g.lineTo(W/2+6*dpr,0); g.lineTo(W/2,7*dpr); g.closePath(); g.fill();
@@ -1440,6 +1454,7 @@ async function ensureDetail(id){
     const file=await getFile(id); const {dur,x22}=await decodeFull(file);
     const det=computeBands(x22, 22050, Math.max(200, Math.round(dur*DETAIL_CPS)));
     S.detail.set(id, det); if (S.detail.size>5) S.detail.delete(S.detail.keys().next().value);
+    (S.scratch ||= new Map()).set(id, x22); if (S.scratch.size>2) S.scratch.delete(S.scratch.keys().next().value);
   }catch(e){ console.warn(e); }
   S._detailBusy=null; if (S.current===id){ msg.textContent=""; drawWaves(); }
 }
@@ -1452,9 +1467,18 @@ async function seekTo(time){
 // detail: drag to scroll, tap to jump
 (function(){
   const c=$("#tDetail"); let x0=null, t0=0, dragged=false;
-  c.addEventListener("pointerdown",(e)=>{ const t=S.tracks.get(S.current); if(!t) return; x0=e.clientX; t0=curTime(t); dragged=false; c.setPointerCapture(e.pointerId); });
-  c.addEventListener("pointermove",(e)=>{ if(x0==null) return; const dx=e.clientX-x0; if (Math.abs(dx)>4) dragged=true; if(!dragged) return; const nt=t0 - dx/c.clientWidth*S.zoom; seekTo(nt); });
-  c.addEventListener("pointerup",(e)=>{ if(x0==null) return; const t=S.tracks.get(S.current); if(!dragged && t){ const r=c.getBoundingClientRect(); seekTo(curTime(t) + ((e.clientX-r.left)/r.width-0.5)*S.zoom); } x0=null; });
+  let wasPlaying=false, scr=false, last=0;
+  c.addEventListener("pointerdown",(e)=>{ const t=S.tracks.get(S.current); if(!t) return; x0=e.clientX; t0=curTime(t); dragged=false; scr=false; c.setPointerCapture(e.pointerId);
+    wasPlaying = S.playingId===t.id && !audio.paused; });
+  c.addEventListener("pointermove",(e)=>{ if(x0==null) return; const dx=e.clientX-x0; if (Math.abs(dx)>4 && !dragged){ dragged=true; const t=S.tracks.get(S.current);
+      if (wasPlaying) audio.pause(); scr=scratchStart(t); }
+    if(!dragged) return; const t=S.tracks.get(S.current); const nt=Math.max(0, Math.min((t.dur||0)-0.05, t0 - dx/c.clientWidth*S.zoom));
+    scratchTo(nt); S.viewTime=nt; if (S.playingId===S.current){ const now=performance.now(); if (now-last>60){ last=now; try{ audio.currentTime=nt; }catch(_){} } } drawDetailAt(nt); });
+  c.addEventListener("pointerup",(e)=>{ if(x0==null) return; const t=S.tracks.get(S.current);
+    if(!dragged && t){ const r=c.getBoundingClientRect(); seekTo(curTime(t) + ((e.clientX-r.left)/r.width-0.5)*S.zoom); }
+    else if (t){ const end = scr ? SCR.target/SCR.sr : S.viewTime; scratchEnd(); if (S.playingId===S.current){ try{ audio.currentTime=end; }catch(_){} S._startGuard=0; if (wasPlaying) audio.play().catch(()=>{}); } else { S.viewTime=end; } drawWaves(); }
+    x0=null; });
+  c.addEventListener("pointercancel",()=>{ scratchEnd(); x0=null; if (wasPlaying) audio.play().catch(()=>{}); });
 })();
 $("#tOver").addEventListener("click",(e)=>{ const t=S.tracks.get(S.current); if(!t) return; const r=e.currentTarget.getBoundingClientRect(); seekTo((e.clientX-r.left)/r.width*(t.dur||0)); });
 $("#zIn").onclick=()=>{ S.zoom=Math.max(2, S.zoom/1.5); drawWaves(); };
@@ -2335,7 +2359,7 @@ function cloudFromUrl(){
   }catch(e){ return null; }
 }
 
-const APP_VER = "2026-11-16 · 26";
+const APP_VER = "2026-11-16 · 27";
 (async function checkUpdate(){
   try{
     if (location.protocol!=="https:") return;
@@ -2534,6 +2558,57 @@ $("#tReanalyze").onclick=async ()=>{ const t=S.tracks.get(S.current); if(!t) ret
 $("#reAll").onclick=async ()=>{ const ts=[...S.tracks.values()].filter(t=>!t.missing && !t.big && S.files.has(t.id)); if(!ts.length){ toast("Нет треков"); return; }
   if (!(await askConfirm(`Проанализировать заново ${ts.length} ${plural(ts.length,"трек","трека","треков")}? Ручные правки BPM и сетки сбросятся.`))) return;
   for (const t of ts){ resetAnalysis(t); await DB.put(t); S.queue.push(t.id); } S.total=S.queue.length; S.done=0; renderAll(); runQueue(); toast("Переанализ запущен"); };
+/* ---------- hot cues ---------- */
+const CUE_COL=["#FF3B4E","#FF9F1C","#FFE14D","#3DDC84","#2EC5FF","#5B6CFF","#B45CFF","#FF5CC8"];
+let CUEQ=true;
+function renderCues(){
+  const t=S.tracks.get(S.current); const box=$("#cuePads"); if(!t||!box) return; const cs=t.cues||[];
+  box.innerHTML=CUE_COL.map((c,i)=>{ const v=cs[i]; return v!=null ? `<button class="cue set" data-cue="${i}" style="background:${c}">${"ABCDEFGH"[i]}<small>${fmtTime(v)}</small></button>` : `<button class="cue" data-cue="${i}" style="border-color:${c}55">${"ABCDEFGH"[i]}</button>`; }).join("");
+}
+async function saveCues(t){ t.editedAt=Date.now(); await DB.put(t); scheduleSync(); tgDirty(); renderCues(); drawWaves(); }
+function quant(t, time){ const gr=gridOf(t); if (!CUEQ || !gr) return time; const k=Math.round((time-gr.first)/gr.P); return Math.max(0, gr.first+k*gr.P); }
+async function hitCue(i){
+  const t=S.tracks.get(S.current); if(!t) return; t.cues=t.cues||[];
+  if (t.cues[i]==null){ t.cues[i]=quant(t, curTime(t)); try{ Telegram.WebApp.HapticFeedback.impactOccurred("light"); }catch(e){} await saveCues(t); return; }
+  const at=t.cues[i];
+  if (S.playingId!==t.id){ await playTrack(t.id); }
+  S._startGuard=0; const go=()=>{ try{ audio.currentTime=at; }catch(e){} if (audio.paused) audio.play().catch(()=>{}); drawWaves(); };
+  if (audio.readyState>=1) go(); else audio.addEventListener("loadedmetadata", go, {once:true});
+}
+(function(){ let tm=null, long=false;
+  const box=$("#cuePads");
+  box.addEventListener("pointerdown",(e)=>{ const b=e.target.closest("[data-cue]"); if(!b) return; long=false; const i=+b.dataset.cue;
+    tm=setTimeout(async ()=>{ long=true; const t=S.tracks.get(S.current); if (t && t.cues && t.cues[i]!=null){ t.cues[i]=null; try{ Telegram.WebApp.HapticFeedback.impactOccurred("medium"); }catch(_){} await saveCues(t); toast(`Метка ${"ABCDEFGH"[i]} удалена`); } }, 550); });
+  box.addEventListener("pointerup",(e)=>{ clearTimeout(tm); const b=e.target.closest("[data-cue]"); if (b && !long) hitCue(+b.dataset.cue); });
+  box.addEventListener("pointerleave",()=>clearTimeout(tm));
+  box.addEventListener("contextmenu",(e)=>e.preventDefault());
+})();
+$("#cueQ").onclick=()=>{ CUEQ=!CUEQ; $("#cueQ").textContent = CUEQ ? "Квант: по доле" : "Квант: выкл"; };
+document.addEventListener("keydown",(e)=>{ if (!$("#v-track").classList.contains("on") || /INPUT|SELECT|TEXTAREA/.test(document.activeElement && document.activeElement.tagName||"")) return;
+  const n="12345678".indexOf(e.key); if (n>=0){ e.preventDefault(); hitCue(n); } else if (e.key===" "){ e.preventDefault(); $("#tPlay").click(); } });
+/* ---------- scratch: dragging the waveform plays the sound like a record ---------- */
+const SCR={ctx:null, node:null, gain:null, x:null, sr:22050, pos:0, target:0, vel:0, amp:0, active:false};
+function scratchStart(t){
+  const x=S.scratch && S.scratch.get(t.id); if (!x) return false;
+  try{
+    if (!SCR.ctx){ const AC=window.AudioContext||window.webkitAudioContext; SCR.ctx=new AC(); }
+    SCR.ctx.resume();
+    if (!SCR.node){
+      SCR.node=SCR.ctx.createScriptProcessor(1024,1,1); SCR.node.connect(SCR.ctx.destination);
+      SCR.node.onaudioprocess=(ev)=>{ const out=ev.outputBuffer.getChannelData(0), n=out.length, X=SCR.x;
+        if (!SCR.active && SCR.amp<0.001 || !X){ out.fill(0); return; }
+        const ratio=SCR.sr/SCR.ctx.sampleRate, want=Math.max(-6, Math.min(6, (SCR.target-SCR.pos)/(n*ratio)));   // velocity that reaches the finger in one block
+        for (let i=0;i<n;i++){
+          SCR.vel+= (want-SCR.vel)*0.02; SCR.pos+=SCR.vel*ratio;
+          const ga=SCR.active ? Math.min(1, Math.abs(SCR.vel)*1.6) : 0; SCR.amp+=(ga-SCR.amp)*0.01;
+          const p=SCR.pos, k=Math.floor(p), f=p-k, a=X[k]||0, b=X[k+1]||0; out[i]=(a+(b-a)*f)*SCR.amp*1.4;
+        } };
+    }
+    SCR.x=x; SCR.pos=SCR.target=curTime(t)*SCR.sr; SCR.vel=0; SCR.active=true; return true;
+  }catch(e){ return false; }
+}
+function scratchTo(time){ if (SCR.active) SCR.target=time*SCR.sr; }
+function scratchEnd(){ SCR.active=false; }
 window.__dj = {S, DB, detectBpm, detectKey, analyzeFile, ingest, parseKeyTag, camelot};
 </script>
 </body>
