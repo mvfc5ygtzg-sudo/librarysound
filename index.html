@@ -9,6 +9,7 @@
 <link rel="icon" href="icon-192.png">
 <meta name="theme-color" content="#0B0C0F">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<script>window.TG_MODE=/tgWebApp(Data|Platform)/.test(location.hash+location.search);try{if(window.TG_MODE)sessionStorage.setItem("tgmode","1");else if(sessionStorage.getItem("tgmode")==="1")window.TG_MODE=true;}catch(e){}if(window.TG_MODE)document.documentElement.classList.add("tg-mode");</script>
 <script async src="https://telegram.org/js/telegram-web-app.js" onload="try{const w=window.Telegram&&Telegram.WebApp; if(w&&w.initData!==undefined){w.ready(); w.expand(); w.setHeaderColor&&w.setHeaderColor('#0B0C0F'); w.setBackgroundColor&&w.setBackgroundColor('#0B0C0F'); document.documentElement.classList.add('in-tg');}}catch(e){}"></script>
 <style>
 :root{
@@ -92,6 +93,7 @@ nav.tabs button.on{color:var(--acc);font-weight:600}
 .note span{font-size:13px;color:var(--muted)}
 .pane{padding:0 16px;display:flex;flex-direction:column;gap:14px}
 .drop.over{border-color:var(--acc);background:#1A2108}
+html.tg-mode .no-tg{display:none!important}
 .drop{height:160px;border-radius:24px;border:2px dashed var(--acc-line);background:#12160A;color:var(--text);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;width:100%}
 .qitem{padding:12px 14px;border-radius:16px;background:var(--card);border:1px solid var(--line);display:flex;flex-direction:column;gap:8px}
 .badge{font-family:var(--mono);font-size:12px;font-weight:700;padding:3px 8px;border-radius:8px;white-space:nowrap}
@@ -210,7 +212,7 @@ nav.tabs button.on{color:var(--acc);font-weight:600}
         <button class="pill" id="clearPill" style="display:none">Сбросить</button>
       </div>
     </div>
-    <div class="note" id="syncBanner" style="display:none;margin:0 16px 10px"><div style="flex:1;display:flex;flex-direction:column;gap:2px"><b>Войди в Google</b><span>Есть изменения или треки, которые ждут загрузки и синхронизации с телефоном.</span></div><button class="smallbtn acc" id="syncLogin">Войти</button></div>
+    <div class="note no-tg" id="syncBanner" style="display:none;margin:0 16px 10px"><div style="flex:1;display:flex;flex-direction:column;gap:2px"><b>Войди в Google</b><span>Есть изменения или треки, которые ждут загрузки и синхронизации с телефоном.</span></div><button class="smallbtn acc" id="syncLogin">Войти</button></div>
     <div class="list" id="list"></div>
     <div id="libEmpty"></div>
   </section>
@@ -299,7 +301,7 @@ nav.tabs button.on{color:var(--acc);font-weight:600}
       </div>
     </div>
     <div class="pane">
-      <button class="drop" id="pickBtn">
+      <button class="drop no-tg" id="pickBtn">
         <span style="width:52px;height:52px;border-radius:26px;background:var(--acc);display:flex;align-items:center;justify-content:center"><svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#0B0C0F" stroke-width="2.6" stroke-linecap="round"><path d="M12 19V6m-6 6 6-6 6 6"/></svg></span>
         <span style="font-size:16px;font-weight:700" id="pickLabel">Выбрать папку с музыкой</span>
         <span style="font-size:13px;color:var(--muted)">Подпапки станут папками в приложении · или перетащи сюда файлы и папки</span>
@@ -312,7 +314,7 @@ nav.tabs button.on{color:var(--acc);font-weight:600}
         <div id="tgSrvRow" style="display:none;flex-direction:column;gap:8px"><label class="dim" style="font-size:13px" for="tgSrv">Адрес сервера бота (…workers.dev)</label><input id="tgSrv" class="nameinp" style="font-size:14px;font-family:var(--mono);font-weight:500" placeholder="https://dj-library.имя.workers.dev"><button class="smallbtn acc" id="tgSrvSave" style="align-self:flex-start">Сохранить</button></div>
         <span class="dim" style="font-size:12px" id="tgState"></span>
       </div>
-      <div class="pcard" style="gap:10px">
+      <div class="pcard no-tg" style="gap:10px">
         <b style="font-size:15px">Добавить отдельные треки</b>
         <div class="row" style="gap:10px;flex-wrap:wrap">
           <label class="dim" style="font-size:13px" for="singleFolder">В папку:</label>
@@ -324,8 +326,8 @@ nav.tabs button.on{color:var(--acc);font-weight:600}
         <span class="dim" style="font-size:12px">Можно выбрать один трек или сразу несколько.</span>
       </div>
       <div id="queueBox" style="display:flex;flex-direction:column;gap:10px"></div>
-      <span class="eyebrow" style="margin-top:8px">Google Диск</span>
-      <div class="pcard" style="gap:10px">
+      <span class="eyebrow no-tg" style="margin-top:8px">Google Диск</span>
+      <div class="pcard no-tg" style="gap:10px">
         <div class="row between"><b id="cloudState" style="font-size:15px">Не подключён</b><span class="badge" id="cloudBadge" style="color:#9AA0AA;background:#1d2026">выкл</span></div>
         <label class="dim" style="font-size:13px" for="cLink">Ссылка на папку с музыкой (доступ «Все, у кого есть ссылка»)</label>
         <input id="cLink" class="nameinp" style="font-size:14px;font-family:var(--mono);font-weight:500" placeholder="https://drive.google.com/drive/folders/..." autocomplete="off">
@@ -346,8 +348,8 @@ nav.tabs button.on{color:var(--acc);font-weight:600}
         <span class="dim" style="font-size:12px" id="cLoginState">Не выполнен вход</span>
         <span class="dim" style="font-size:12px;line-height:1.5">Ссылка и ключ хранятся только в этом приложении на этом устройстве. Чтобы не анализировать треки заново на телефоне, сохрани «данные библиотеки» и положи файл dj-library-data.json в эту же папку на Диске — приложение подхватит его само.</span>
       </div>
-      <span class="eyebrow" style="margin-top:8px">Резервная копия</span>
-      <div class="note" style="margin:0">
+      <span class="eyebrow no-tg" style="margin-top:8px">Резервная копия</span>
+      <div class="note no-tg" style="margin:0">
         <svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#C6F432" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 18a5 5 0 0 1-.5-9.97A6 6 0 0 1 18 9a4.5 4.5 0 0 1-.5 9z"/><path d="m9 13 2 2 4-4"/></svg>
         <div style="display:flex;flex-direction:column;gap:4px"><b>Чтобы треки не пропали</b><span>Держи папку с музыкой в iCloud Drive, Google Диске или Яндекс Диске — тогда при поломке ноутбука всё скачается обратно. Плюс копия на внешнем диске.</span></div>
       </div>
@@ -358,7 +360,7 @@ nav.tabs button.on{color:var(--acc);font-weight:600}
         <button class="ghost" id="freeBtn">Очистить память</button>
         <input type="file" id="impFile" accept=".json,application/json" style="display:none">
       </div>
-      <span class="dim" style="font-size:12px">Версия приложения: <b id="appVer">2026-11-16 · 19</b></span>
+      <span class="dim" style="font-size:12px">Версия приложения: <b id="appVer">2026-11-16 · 20</b></span>
       <span class="dim" style="font-size:13px;line-height:1.5">«Данные библиотеки» — это BPM, тональности и твои исправления. Сами треки в этот файл не входят. Сохрани его рядом с музыкой в облаке.</span>
     </div>
   </section>
@@ -847,9 +849,16 @@ async function analyzeFile(file){
 /* =====================================================================
    Loading a folder (read-only)
    ===================================================================== */
+const TG_BLOBS=new Map();
+function mimeOf(n){ const e=(n.split(".").pop()||"").toLowerCase(); return ({wav:"audio/wav",flac:"audio/flac",aif:"audio/aiff",aiff:"audio/aiff",m4a:"audio/mp4",aac:"audio/aac",ogg:"audio/ogg"})[e]||"audio/mpeg"; }
+// iOS only lets a page start sound from a tap: unlock the player on the first touch so a track can start after it has downloaded
+(function(){ const un=()=>{ try{ const a=document.getElementById("audio")||window.audio; if(a && !a.src){ a.src="data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YQAAAAA="; const p=a.play(); const clr=()=>{ try{ if(a.src.startsWith("data:")){ a.pause(); a.removeAttribute("src"); a.load(); } }catch(e){} }; if(p) p.then(clr).catch(clr); else clr(); } }catch(e){} document.removeEventListener("touchend",un,true); document.removeEventListener("click",un,true); };
+  document.addEventListener("touchend",un,true); document.addEventListener("click",un,true); })();
 async function getFile(id){
   const f=S.files.get(id); if(!f) return null;
-  if (f.tg){ const r=await fetch(tgUrl(f.tg)); if(!r.ok){ let m=""; try{ m=(await r.json()).error; }catch(e){} throw new Error(m||("Бот: "+r.status)); } const b=await r.blob(); return new File([b], f.name, {type:b.type||"audio/mpeg"}); }
+  if (f.tg){ const c=TG_BLOBS.get(f.tg); if (c) return c;
+    const r=await fetch(tgUrl(f.tg)); if(!r.ok){ let m=""; try{ m=(await r.json()).error; }catch(e){} throw new Error(m||("Бот: "+r.status)); } const b=await r.blob(); const file=new File([b], f.name, {type:b.type||mimeOf(f.name)});
+    TG_BLOBS.set(f.tg, file); while (TG_BLOBS.size>3) TG_BLOBS.delete(TG_BLOBS.keys().next().value); return file; }
   if (f.drive){ const r=await fetch(mediaUrl(f.drive)); if(!r.ok) throw new Error("Google Диск: "+r.status); const b=await r.blob(); return new File([b], f.name, {type:b.type||"audio/mpeg"}); }
   return f.getFile ? await f.getFile() : f;
 }
@@ -973,6 +982,12 @@ function renderList(){
   $("#libCount").textContent = all.length ? all.length+" "+plural(all.length,"трек","трека","треков") : "Нет треков";
   $("#libEyebrow").textContent = S.rootName ? "Папка «"+S.rootName+"»" : "Моя библиотека";
   const arr=visibleTracks(), L=$("#list");
+  if (!all.length && window.TG_MODE){
+    L.innerHTML="";
+    $("#libEmpty").innerHTML = `<div class="empty"><b style="font-size:20px;font-family:var(--head)">Отправь треки боту</b><p>Закинь аудиофайлы в чат с ботом — они появятся здесь, с BPM и тональностью. Подпись к файлу = папка.</p><div class="row" style="flex-wrap:wrap;gap:10px"><button class="big" id="emptyChat">Открыть чат с ботом</button></div></div>`;
+    $("#emptyChat").onclick=()=>{ try{ Telegram.WebApp.close(); }catch(e){} };
+    return;
+  }
   if (!all.length){
     L.innerHTML="";
     $("#libEmpty").innerHTML = `<div class="empty"><b style="font-size:20px;font-family:var(--head)">Добавь свою музыку</b><p>Выбери папку с треками на Mac. Приложение определит BPM и тональность и разложит треки по папкам. Сами файлы не меняются.</p><div class="row" style="flex-wrap:wrap;gap:10px"><button class="big" id="emptyPick">Выбрать папку с музыкой</button><button class="ghost" id="emptyCloud">Google Диск</button></div></div>`;
@@ -1067,9 +1082,9 @@ function renderAll(){ renderChips(); renderPills(); renderList(); renderFolders(
 const audio=$("#audio"); let objUrl=null;
 async function playTrack(id){
   const src=S.files.get(id);
-  if (!src){ toast("Файл недоступен — открой папку или подключи Google Диск во вкладке «Добавить»"); return; }
+  if (!src){ toast(window.TG_MODE ? "Этого трека нет в чате бота — отправь его боту" : "Файл недоступен — открой папку или подключи Google Диск во вкладке «Добавить»"); return; }
   if (objUrl){ URL.revokeObjectURL(objUrl); objUrl=null; }
-  if (src.tg){ audio.src=tgUrl(src.tg)+"#t=0"; }
+  if (src.tg){ let f=TG_BLOBS.get(src.tg); if (!f){ toast("Загружаю трек из Telegram…"); try{ f=await getFile(id); }catch(e){ toast("Не получилось открыть: "+e.message); return; } } objUrl=URL.createObjectURL(f); audio.src=objUrl; }
   else if (src.drive){ audio.src=mediaUrl(src.drive)+"#t=0"; }
   else { const f=await getFile(id); objUrl=URL.createObjectURL(f); audio.src=objUrl+"#t=0"; }
   S._startGuard=performance.now();
@@ -2020,7 +2035,7 @@ function cloudFromUrl(){
   }catch(e){ return null; }
 }
 
-const APP_VER = "2026-11-16 · 19";
+const APP_VER = "2026-11-16 · 20";
 (async function checkUpdate(){
   try{
     if (location.protocol!=="https:") return;
@@ -2048,6 +2063,7 @@ async function freeSpace(){
   const hf = await DB.getMeta("hiddenFolders"); if (Array.isArray(hf)) S.hiddenFolders=new Set(hf);
   initTelegramSource();
   const pr = await DB.getMeta("profile"); if (pr) Object.assign(P, pr); else P.lastLevel = levelOf(stats().xp);
+  if (window.TG_MODE){ renderAll(); return; }   // in Telegram: only tracks from the bot chat
   // Google Drive config: from a "phone link" (?c=...) or saved earlier
   const fromUrl = cloudFromUrl();
   if (fromUrl){ await saveCloud({...fromUrl, link:"https://drive.google.com/drive/folders/"+fromUrl.folderId}); }
