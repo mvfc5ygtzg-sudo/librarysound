@@ -362,7 +362,7 @@ html.tg-mode .no-tg{display:none!important}
         <button class="ghost" id="freeBtn">Очистить память</button>
         <input type="file" id="impFile" accept=".json,application/json" style="display:none">
       </div>
-      <span class="dim" style="font-size:12px">Версия приложения: <b id="appVer">2026-11-16 · 22</b></span>
+      <span class="dim" style="font-size:12px">Версия приложения: <b id="appVer">2026-11-16 · 23</b></span>
       <span class="dim" style="font-size:13px;line-height:1.5">«Данные библиотеки» — это BPM, тональности и твои исправления. Сами треки в этот файл не входят. Сохрани его рядом с музыкой в облаке.</span>
     </div>
   </section>
@@ -1718,14 +1718,17 @@ $("#delOk").onclick=async ()=>{
       const t=S.tracks.get(DEL.target);
       if (fromDrive){ const src=S.files.get(t.id); const r=await gauth(`${DAPI}/${src.drive}?supportsAllDrives=true`, {method:"PATCH", headers:{"Content-Type":"application/json"}, body:JSON.stringify({trashed:true})}); if(!r.ok) throw new Error("Диск не удалил файл ("+r.status+")"); }
       const srcT=S.files.get(t.id); if (srcT && srcT.tg){ try{ await fetch(`${TGS.server}/api/track/${srcT.tg}?auth=${encodeURIComponent(TGS.initData)}`, {method:"DELETE"}); }catch(e){} }
-      t.hidden=true; t.editedAt=Date.now(); await DB.put(t);
+      if (window.TG_MODE){ S.tracks.delete(t.id); S.files.delete(t.id); await DB.del(t.id); }   // in Telegram the bot is the library: really remove it
+      else { t.hidden=true; t.editedAt=Date.now(); await DB.put(t); }
       if (S.playingId===t.id){ audio.pause(); }
       toast(fromDrive ? "Трек удалён и перемещён в корзину Google Диска" : "Трек удалён из библиотеки");
       if ($("#v-track").classList.contains("on")) show(lastTab);
     } else {
       const name=DEL.target;
       if (fromDrive){ const r=await gauth(`${DAPI}/${CLOUD.folders[name]}?supportsAllDrives=true`, {method:"PATCH", headers:{"Content-Type":"application/json"}, body:JSON.stringify({trashed:true})}); if(!r.ok) throw new Error("Диск не удалил папку ("+r.status+")"); }
-      S.hiddenFolders.add(name); S.hiddenAt=Date.now(); await DB.setMeta("hiddenFolders", [...S.hiddenFolders]); scheduleSync();
+      if (window.TG_MODE){
+        for (const t of [...S.tracks.values()].filter(t=>t.folder===name)){ const sr=S.files.get(t.id); if (sr && sr.tg){ try{ await fetch(`${TGS.server}/api/track/${sr.tg}?auth=${encodeURIComponent(TGS.initData)}`, {method:"DELETE"}); }catch(e){} } S.tracks.delete(t.id); S.files.delete(t.id); await DB.del(t.id); }
+      } else { S.hiddenFolders.add(name); S.hiddenAt=Date.now(); await DB.setMeta("hiddenFolders", [...S.hiddenFolders]); scheduleSync(); }
       if (S.folder===name) S.folder="Все";
       toast(fromDrive ? `Папка «${name}» удалена и перемещена в корзину Диска` : `Папка «${name}» удалена из библиотеки`);
     }
@@ -2177,7 +2180,9 @@ async function loadTelegram(){
     const all=j.tracks.map(t=>({path: t.folder ? `Telegram/${t.folder}/${t.name}` : `Telegram/${t.name}`, tg:t.id, size:t.size, mtime:(t.date||0)*1000, meta:t}));
     const best=new Map(); for (const e of all){ const k=trackId(e.path,e.size), p=best.get(k); if (!p || (e.meta.playable && !p.meta.playable) || (e.meta.stored && !p.meta.stored)) best.set(k,e); }   // same file in chat and in storage: use the playable copy
     const ents=[...best.values()];
-    for (const e of ents){ const t=S.tracks.get(trackId(e.path,e.size)); if (t && t.big && e.meta.playable){ t.failed=false; t.big=false; t.err=""; } }
+    for (const e of ents){ const t=S.tracks.get(trackId(e.path,e.size)); if (t && t.big && e.meta.playable){ t.failed=false; t.big=false; t.err=""; } if (t && t.hidden){ t.hidden=false; } }
+    if (S.hiddenFolders.size){ S.hiddenFolders.clear(); await DB.setMeta("hiddenFolders", []); }   // old "deleted folder" marks from the Mac/Drive library must not hide bot tracks
+    if (!TGS.loadedOnce){ TGS.loadedOnce=true; S.folder="Все"; S.q=""; const qi=$("#q"); if (qi) qi.value=""; S.bpmMin=S.bpmMax=null; S.keyF=null; }
     await ingest(ents);
     for (const e of ents){ const id=trackId(e.path,e.size), t=S.tracks.get(id), src=S.files.get(id); if(!t) continue;
       if (src && src.tg && e.meta.stored) src.stream=true;
@@ -2212,7 +2217,7 @@ function cloudFromUrl(){
   }catch(e){ return null; }
 }
 
-const APP_VER = "2026-11-16 · 22";
+const APP_VER = "2026-11-16 · 23";
 (async function checkUpdate(){
   try{
     if (location.protocol!=="https:") return;
@@ -2265,7 +2270,7 @@ function showReconnect(){
   $("#v-lib .top").after(b);
   $("#reBtn").onclick=async()=>{ b.remove(); await resumeOrPick(); };
 }
-window.__dj = {S, detectBpm, detectKey, analyzeFile, ingest, parseKeyTag, camelot};
+window.__dj = {S, DB, detectBpm, detectKey, analyzeFile, ingest, parseKeyTag, camelot};
 </script>
 </body>
 </html>
